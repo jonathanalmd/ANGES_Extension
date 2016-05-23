@@ -9,6 +9,7 @@ import sys
 import time
 
 from itertools import combinations
+from collections import defaultdict
 
 from data_structures import markers
 from data_structures import intervals
@@ -23,17 +24,25 @@ def getOverlappedPairs(hom_fams):
     getOverlappedPairs: receives a list of hom_fams and returns a list of overlapping pairs
     hom_fams - HomFam: list of objects from HomFam class
     """
-    import pdb; pdb.set_trace()
+#    import pdb; pdb.set_trace()
+    loci_dict = defaultdict(list)
+    for family in hom_fams:
+#        loci_list.append(sorted(family.loci,key = lambda x_loci: x_loci.species))
+        for loci in family.loci:
+            loci_dict[loci.species].append(loci)
+    print loci_dict
     overlapping_pairs_list = []
-    for family in combinations(hom_fams, 2):
-        overlapping_pairs_aux = family[0].overlappingPairs(family[1])
-        if overlapping_pairs_aux:
-            overlapping_pairs_list.append(overlapping_pairs_aux)
-    return overlapping_pairs_list
+    for species,value in loci_dict.items():
+        print (species,value)
+#    for family in combinations(hom_fams, 2):
+#        overlapping_pairs_aux = family[0].overlappingPairs(family[1])
+#        if overlapping_pairs_aux:
+#            overlapping_pairs_list.append(overlapping_pairs_aux)
+#    return overlapping_pairs_list
 
-def removeByID(hom_fams, ids):
+def filterByID(hom_fams, ids):
     """ 
-    removeByID: Receives a list of IDs and remove them from the main markers list
+    filterByID: Receives a list of IDs and remove them from the main markers list
     Returns a list 
     hom_fams - HomFam: list of HomFam
     ids - int: list of IDs to be removed from the hom_fams list

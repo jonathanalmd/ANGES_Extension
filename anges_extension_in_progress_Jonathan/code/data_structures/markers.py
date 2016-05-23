@@ -230,8 +230,7 @@ class Locus:
         if not isinstance(other, Locus):
             raise TypeError("Trying to compare two instances with different types")
         #endif
-        if self.species == other.species:
-            #and self.chromosome == other.chromosome:
+        if self.species == other.species and self.chromosome == other.chromosome:
             if self.start <= other.start:
                 return self.end >= other.start 
             else: # self.start >= other.start
@@ -254,8 +253,7 @@ class Locus:
         """
         if not isinstance(other, Locus):
             raise TypeError("Trying to compare a Locus vs non-Locus")
-        if self.species == other.species:
-            #and self.chromosome == other.chromosome:
+        if self.species == other.species and self.chromosome == other.chromosome:
             if self.start >= other.start:
                 return self.end <= other.end
             else: # other.start >= self.start
