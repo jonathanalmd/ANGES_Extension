@@ -27,7 +27,6 @@ def getOverlappedPairs(hom_fams):
 #    import pdb; pdb.set_trace()
     loci_dict = defaultdict(list)
     for family in hom_fams:
-#        loci_list.append(sorted(family.loci,key = lambda x_loci: x_loci.species))
         for loci in family.loci:
             loci_dict[loci.species].append(loci)
     print loci_dict
@@ -36,18 +35,11 @@ def getOverlappedPairs(hom_fams):
         print (species,species_data)
         i = 1
         while i < len(species_data):
-            overlapping_pairs_aux = species_data[0].overlappingPairs(species_data[i])
-            if overlapping_pairs_aux:
-                overlapping_pairs_list.append(overlapping_pairs_aux)
+            if species_data[0].overlappingPairs(species_data[i]):
+                overlapping_pairs_list.append(species_data[0].overlappingPairs(species_data[i]))
             i = i + 1
 
     return overlapping_pairs_list
-
-#    for family in combinations(hom_fams, 2):
-#        overlapping_pairs_aux = family[0].overlappingPairs(family[1])
-#        if overlapping_pairs_aux:
-#            overlapping_pairs_list.append(overlapping_pairs_aux)
-#    return overlapping_pairs_list
 
 def filterByID(hom_fams, ids):
     """ 

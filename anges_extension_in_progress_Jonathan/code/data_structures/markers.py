@@ -266,33 +266,19 @@ class Locus:
     
     def overlappingPairs(self, other):
         """
-        overlappingPairs: receives two Homologous Families and checks if there is a overlap/inclusion
-        Returns a list of all these pairs of overlaps/inclusions markers
-        self - HomFam: the first homologous family object to be compared
-        other - HomFam: the second homologous family object to be compared with the first one
+        overlappingPairs: receives two Locus and checks if there is a overlap/inclusion
+        Returns a tuple with the two overlapped loci (if isOverlap) or a empty tuple
+        self - Locus: the first Locus object to be compared
+        other - Locus: the second Locus object to be compared with the first one
         """
-        overlappingPairs = [] # list of overlapped markers
-        inclusionPairs = [] # list of included markers
         if not isinstance(other, Locus):
             raise TypeError("Trying to compare two instances with different types")
         if self.isOverlap(other):
-            overlappingPairs.append((self,other))
-        if self.isInclusion(other):
-            inclusionPairs.append((self,other))
+            return (self,other)
+        else:
+            return ()
 
-       # for locus1 in self.loci: #loci = list of locus. Most part of the cases: loci have five locus 
-       #     for locus2 in other.loci:
-       #         if locus1.isOverlap(locus2):
-       #             overlappingPairs.append((locus1,locus2))
-       #         if locus1.isInclusion(locus2):
-       #             inclusionPairs.append((locus1, locus2))     
-       #         #endif
-       #     #endfor
-       # #endfor
-        return overlappingPairs
     #enddef
-
-
 
 #endclass
 
