@@ -263,6 +263,36 @@ class Locus:
             return False
         #endif
     #enddef
+    
+    def overlappingPairs(self, other):
+        """
+        overlappingPairs: receives two Homologous Families and checks if there is a overlap/inclusion
+        Returns a list of all these pairs of overlaps/inclusions markers
+        self - HomFam: the first homologous family object to be compared
+        other - HomFam: the second homologous family object to be compared with the first one
+        """
+        overlappingPairs = [] # list of overlapped markers
+        inclusionPairs = [] # list of included markers
+        if not isinstance(other, Locus):
+            raise TypeError("Trying to compare two instances with different types")
+        if self.isOverlap(other):
+            overlappingPairs.append((self,other))
+        if self.isInclusion(other):
+            inclusionPairs.append((self,other))
+
+       # for locus1 in self.loci: #loci = list of locus. Most part of the cases: loci have five locus 
+       #     for locus2 in other.loci:
+       #         if locus1.isOverlap(locus2):
+       #             overlappingPairs.append((locus1,locus2))
+       #         if locus1.isInclusion(locus2):
+       #             inclusionPairs.append((locus1, locus2))     
+       #         #endif
+       #     #endfor
+       # #endfor
+        return overlappingPairs
+    #enddef
+
+
 
 #endclass
 
@@ -441,29 +471,6 @@ class HomFam:
         #endif
 
         return HomFam(ident, [], copy_number, comment)
-    #enddef
-
-    def overlappingPairs(self, other):
-        """
-        overlappingPairs: receives two Homologous Families and checks if there is a overlap/inclusion
-        Returns a list of all these pairs of overlaps/inclusions markers
-        self - HomFam: the first homologous family object to be compared
-        other - HomFam: the second homologous family object to be compared with the first one
-        """
-        overlappingPairs = [] # list of overlapped markers
-        inclusionPairs = [] # list of included markers
-        if not isinstance(other, HomFam):
-            raise TypeError("Trying to compare two instances with different types")
-        for locus1 in self.loci: #loci = list of locus. Most part of the cases: loci have five locus 
-            for locus2 in other.loci:
-                if locus1.isOverlap(locus2):
-                    overlappingPairs.append((locus1,locus2))
-                if locus1.isInclusion(locus2):
-                    inclusionPairs.append((locus1, locus2))     
-                #endif
-            #endfor
-        #endfor
-        return overlappingPairs
     #enddef
 
 
