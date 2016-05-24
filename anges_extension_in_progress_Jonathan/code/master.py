@@ -26,14 +26,28 @@ def getOverlappingPairs(hom_fams):
     """
 #    import pdb; pdb.set_trace()
     loci_dict = defaultdict(list)
-    
+    overlapping_pairs_list = []
     for hom_fam_index, marker_family in enumerate(hom_fams):
         for locus_index, locus in enumerate(marker_family.loci):
            loci_dict[locus.species].append((hom_fam_index, locus_index))
     for species, species_indexes in loci_dict.items():
-        print (species, species_indexes) 
-    overlapping_pairs_list = []
-    #transform the hom_fams in a dictionary using the species as key and the Locus from each species as value)
+        print (species, species_indexes) # species name and a list of tuples with (hom_fam_index, locus_index)
+        i = 1
+        locus1 = hom_fams[species_indexes[0][0]].loci[species_indexes[0][1]]
+        while i < len(species_indexes):
+            locus2 = hom_fams[species_indexes[i][0]].loci[species_indexes[i][1]]
+            print (locus1, locus2)
+            is_overlapping_pair = locus1.overlappingPairs(locus2)
+            if is_overlapping_pair:
+                overlapping_pairs_list.append(is_overlapping_pair)
+            i = i + 1
+        #for species_locus in species_indexes: #species_locus is a tuple with (hom_fam_index, locus_index)
+        #    print(species, species_locus)
+        #    print(species, hom_fams[species_locus[0]].loci[species_locus[1]])
+   
+   
+   
+        #transform the hom_fams in a dictionary using the species as key and the Locus from each species as value)
 #    for family in hom_fams:
 #        for loci in family.loci:
 #            loci_dict[loci.species].append(loci)
@@ -47,7 +61,7 @@ def getOverlappingPairs(hom_fams):
 #            if is_overlapped_pair:
 #                overlapped_pairs_list.append(is_overlapped_pair)
 #            i = i + 1
-
+    print overlapping_pairs_list
     return overlapping_pairs_list
 
 def filterByID(hom_fams, ids):
