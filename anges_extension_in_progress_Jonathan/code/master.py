@@ -8,7 +8,7 @@
 import sys
 import time
 
-from itertools import combinations
+#from itertools import combinations
 from collections import defaultdict
 
 from data_structures import markers
@@ -21,25 +21,27 @@ import assembly
     
 def getOverlappedPairs(hom_fams):
     """
-    getOverlappedPairs: receives a list of hom_fams and returns a list of overlapping pairs
+    getOverlappedPairs: receives a list of hom_fams and returns a list of overlapping pairs (each pair is a tuple containing two Locus)
     hom_fams - HomFam: list of objects from HomFam class
     """
 #    import pdb; pdb.set_trace()
     loci_dict = defaultdict(list)
+    #transform the hom_fams in a dictionary using the species as key and the Locus from each species as value)
     for family in hom_fams:
         for loci in family.loci:
             loci_dict[loci.species].append(loci)
-    print loci_dict
-    overlapping_pairs_list = []
+    overlapped_pairs_list = []
     for species,species_data in loci_dict.items():
         print (species,species_data)
         i = 1
         while i < len(species_data):
-            if species_data[0].overlappingPairs(species_data[i]):
-                overlapping_pairs_list.append(species_data[0].overlappingPairs(species_data[i]))
+            is_overlapped_pair = species_data[0].overlappingPairs(species_data[i]) 
+            # if isOverlapped: return a tuple with the overlapped pair
+            if is_overlapped_pair:
+                overlapped_pairs_list.append(is_overlapped_pair)
             i = i + 1
 
-    return overlapping_pairs_list
+    return overlapped_pairs_list
 
 def filterByID(hom_fams, ids):
     """ 
