@@ -19,29 +19,36 @@ from data_structures import comparisons
 import optimization
 import assembly
     
-def getOverlappedPairs(hom_fams):
+def getOverlappingPairs(hom_fams):
     """
-    getOverlappedPairs: receives a list of hom_fams and returns a list of overlapping pairs (each pair is a tuple containing two Locus)
+    getOverlappingPairs: receives a list of hom_fams and returns a list of overlapping pairs (each pair is a tuple containing two Locus)
     hom_fams - HomFam: list of objects from HomFam class
     """
 #    import pdb; pdb.set_trace()
     loci_dict = defaultdict(list)
+    
+    for hom_fam_index, marker_family in enumerate(hom_fams):
+        for locus_index, locus in enumerate(marker_family.loci):
+           loci_dict[locus.species].append((hom_fam_index, locus_index))
+    for species, species_indexes in loci_dict.items():
+        print (species, species_indexes) 
+    overlapping_pairs_list = []
     #transform the hom_fams in a dictionary using the species as key and the Locus from each species as value)
-    for family in hom_fams:
-        for loci in family.loci:
-            loci_dict[loci.species].append(loci)
-    overlapped_pairs_list = []
-    for species,species_data in loci_dict.items():
-        print (species,species_data)
-        i = 1
-        while i < len(species_data):
-            is_overlapped_pair = species_data[0].overlappingPairs(species_data[i]) 
-            # if isOverlapped: return a tuple with the overlapped pair
-            if is_overlapped_pair:
-                overlapped_pairs_list.append(is_overlapped_pair)
-            i = i + 1
+#    for family in hom_fams:
+#        for loci in family.loci:
+#            loci_dict[loci.species].append(loci)
+#    overlapped_pairs_list = []
+#    for species,species_data in loci_dict.items():
+#        print (species,species_data)
+#        i = 1
+#        while i < len(species_data):
+#            is_overlapped_pair = species_data[0].overlappingPairs(species_data[i]) 
+#            # if isOverlapped: return a tuple with the overlapped pair
+#            if is_overlapped_pair:
+#                overlapped_pairs_list.append(is_overlapped_pair)
+#            i = i + 1
 
-    return overlapped_pairs_list
+    return overlapping_pairs_list
 
 def filterByID(hom_fams, ids):
     """ 
@@ -112,7 +119,7 @@ def main():
     log.flush()
     
     #Get all overlapped pairs
-    overlapped_pairs_list = getOverlappedPairs(hom_fams)
+    overlapped_pairs_list = getOverlappingPairs(hom_fams)
     print overlapped_pairs_list
         
     # Since the markers are all oriented, double them.
