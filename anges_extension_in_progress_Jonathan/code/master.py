@@ -34,7 +34,8 @@ def getOverlappingPairs(hom_fams):
     #endfor
     for species, species_indexes in loci_dict.items():
         # species name and a list of tuples with (hom_fam_index, locus_index)
-        print (species, species_indexes) 
+        # hom_fam_index => access to hom_fam ID and loci list
+        print (species, species_indexes)
         i = 1
         locus1 = hom_fams[species_indexes[0][0]].loci[species_indexes[0][1]]
         while i < len(species_indexes):
@@ -69,15 +70,71 @@ def filterByCopyNumber(hom_fams, threshold):
     """
     return filter(lambda fam: fam.copy_number <= threshold, hom_fams)
 
-def main():
-    # Parse arguments:
-    if len( sys.argv ) != 4:
+def strtime():
+    """
+    Function to format time to string
+    """
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+
+def write_intervals( ints, f, log ):
+    """
+    Function to write intervals to file
+    Arguments:
+    ints: IntervalDict
+    f: the file to write to
+    log: log stream to write errors to
+    """
+    try:
+        output = open( f, 'w' )
+        for interval in ints.itervalues():
+            output.write( str( interval ) + "\n" )
+    except IOError:
+        log.write( "%s  ERROR (master.py) - could not write intervals to"
+                   "file: %s\n" %( strtime(), f ) )
+        sys.exit()
+
+def readConfigFile(config_file, len_arguments):
+    """
+    Function to read the configuration file and return all the interpreted information
+    Arguments:
+    config_file - string: configuration file directory
+    len_arguments - int: arguments length
+    Returns: homologous families file directory
+             species tree file directory 
+             output directory
+             markers parameters (markers_doubled - int, markers_unique - int, markers_universal - int,
+                                 markers_overlap - int, filter_copy_number - int, filter_by_id - list of int)
+            where homologous families, species tree and output are keys for a dictionary and their respective 
+            directories are the values for these keys;
+            markers parameters is a dictionary using markers_doubled, ..., filter_by_id as keys and the values
+            are the parameter values of each parameter (informed in the configuration file)
+    """
+    if len(len_arguments) != 2:
         print ( "%s  ERROR (master.py) - script called with incorrect number "
                 "of arguments." %strtime() )
         sys.exit()
-    hom_fams_file = sys.argv[1]
-    pairs_file = sys.argv[2]
-    output_dir = sys.argv[3]
+    #endif
+    
+    try:
+        pairs_stream = open(config_file, 'r' )
+    except IOError:
+        log.write( "%s  ERROR (master.py) - could not open configuration file: %s\n"
+                   %( strtime(), config_file ) )
+        sys.exit()
+    
+    #collect the information from config file
+
+    
+    return io_dict, markers_param_dict
+
+
+# -------------------------------------------- MAIN ---------------------------------------------------
+def main():
+    # Parse arguments:
+    #hom_fams_file, pairs_file, output_dir
+    io_dict, markers_param_dict = readConfigFile(sys.argv[1], len(sys.argv))
+    
     try:
         log = open( output_dir + "/log", 'w' )
     except IOError:
@@ -120,10 +177,10 @@ def main():
     
     #Get all overlapped pairs
     overlapped_pairs_list = getOverlappingPairs(hom_fams)
-    print overlapped_pairs_list
-        
+  
     # Since the markers are all oriented, double them.
     hom_fams = genomes.double_oriented_markers( hom_fams )
+ 
     # Construct genome objects, based on hom_fams and a list of all species.
     gens = genomes.get_genomes(
         hom_fams,
@@ -245,26 +302,6 @@ def main():
                %( strtime(), len( ancestor_genome.chromosomes ) ) )
     log.write( "%s  Done.\n"%strtime() )
 
-
-# Function to format time to string
-def strtime():
-    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-
-
-# Function to write intervals to file
-# Arguments:
-#   ints: IntervalDict
-#   f: the file to write to
-#   log: log stream to write errors to
-def write_intervals( ints, f, log ):
-    try:
-        output = open( f, 'w' )
-        for interval in ints.itervalues():
-            output.write( str( interval ) + "\n" )
-    except IOError:
-        log.write( "%s  ERROR (master.py) - could not write intervals to"
-                   "file: %s\n" %( strtime(), f ) )
-        sys.exit()
 
 
 
