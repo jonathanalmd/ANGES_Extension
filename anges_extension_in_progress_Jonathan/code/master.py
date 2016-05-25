@@ -34,12 +34,12 @@ def getOverlappingPairs(hom_fams):
     #endfor
     for species, species_indexes in loci_dict.items():
         # species name and a list of tuples with (hom_fam_index, locus_index)
-        #print (species, species_indexes) 
+        print (species, species_indexes) 
         i = 1
         locus1 = hom_fams[species_indexes[0][0]].loci[species_indexes[0][1]]
         while i < len(species_indexes):
             locus2 = hom_fams[species_indexes[i][0]].loci[species_indexes[i][1]]
-            #print (locus1, locus2)
+            print (locus1, locus2)
             is_overlapping_pair = locus1.overlappingPairs(locus2)
             if is_overlapping_pair:
                 overlapping_pairs_list.append(is_overlapping_pair)
