@@ -116,6 +116,7 @@ def readConfigFile(config_file, len_arguments):
             #collect the information from config file
             io_dict = {}
             markers_param_dict = {}
+            syntax_error = False
             line_number = 1
             line = pairs_file_stream.readline()
             while len(line) > 0:
@@ -125,8 +126,15 @@ def readConfigFile(config_file, len_arguments):
                     line = line[:-1] # remove last character (space or newline)
                     splitted_line = line.split(" ") 
                     splitted_line = [element for element in splitted_line if element != ""]
-                    if len(splitted_line) != 3:
-                        print("\n{} SYNTAX ERROR (process.py) at configuration file\n'{}' at line {}: incorrect number of input configuration parameters. \n\tThe line '{}' must follow this syntax:\n\t\t'i> <input_type> <input_file_directory>'\n\tor\n\t\t'o> output_directory <output_directory>\n\tor\n\t\t'm> <marker_parameter_name> <config_value>'\n".format(strtime(),config_file,line_number,line[:-1]))
+
+                    if len(splitted_line) != 3: # syntax error
+                        print("\n{} SYNTAX ERROR (process.py) in the configuration file\n'{}' at line {}: incorrect number of configuration parameters".format(strtime(), config_file, line_number))
+                        print("\tThe line '{}' must follow one of these syntaxes:"
+                                .format(line[:-1]))
+                        print("\t\t'i> <input_type> <input_file_directory>'")
+                        print("\tor\n\t\t'o> output_directory <output_directory>'")
+                        print("\tor\n\t\t'm> <marker_parameter_name> <config_value>'")
+                        syntax_error = True
                     #endif
                     else:
                         if line.startswith("m>"): # markers config
@@ -158,7 +166,11 @@ def readConfigFile(config_file, len_arguments):
             #endwhile
         #endwith    
     except IOError:
-        print("{}  ERROR (master.py -> process.py) - could not open configuration file: {}\n".format(strtime(),config_file))
+        print("{}  ERROR (master.py -> process.py) - could not open configuration file: {}\n"
+                .format(strtime(),config_file))
+        sys.exit()
+    
+    if syntax_error:
         sys.exit()
 
     print("Configuration File info:\n")
