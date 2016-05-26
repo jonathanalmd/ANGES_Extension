@@ -20,11 +20,11 @@ def main():
     #hom_fams_file, pairs_file, output_dir
    
     #sys.argv[1] = ../data/configuration_file 
-    io_dict, markers_param_dict = process.readConfigFile("../data/configuration_file", len(sys.argv))
-
-    hom_fams_file = sys.argv[1]
-    pairs_file = sys.argv[2]
-    output_dir = sys.argv[3]
+    io_dict, markers_param_dict = process.readConfigFile(sys.argv[1], len(sys.argv))
+     
+    hom_fams_file = io_dict["homologous_families"]
+    pairs_file = io_dict["species_tree"]
+    output_dir = io_dict["output_directory"]
 
     try:
         log = open( output_dir + "/log", 'w' )

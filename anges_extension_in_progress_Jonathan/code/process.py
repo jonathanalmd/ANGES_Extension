@@ -105,10 +105,10 @@ def readConfigFile(config_file, len_arguments):
             are the parameter values of each parameter (informed in the configuration file)
     """
 
-    # if len_arguments != 2:
-    #     print ( "%s  ERROR (master.py) - script called with incorrect number "
-    #             "of arguments." %strtime() )
-    #     sys.exit()
+    if len_arguments != 2:
+        print ( "{}  ERROR (master.py -> process.py) - script called with incorrect number "
+                 "of arguments.".format(strtime()))
+        sys.exit()
     #endif
     
     try:
@@ -119,53 +119,46 @@ def readConfigFile(config_file, len_arguments):
             line_number = 1
             line = pairs_file_stream.readline()
             while len(line) > 0:
-                line = line.rsplit("#",1)[0] # ignore comments
-                line = line[:-1] # remove last character (space or newline)
-                splitted_line = line.split(" ") 
-                splitted_line = [element for element in splitted_line if element != ""] 
-                if line.startswith("i>") or line.startswith("o>"): # input/output files directories
+                if line.startswith("i>") or line.startswith("o>") or line.startswith("m>"):
+                    # input/output files directories of markers parameter config
+                    line = line.rsplit("#",1)[0] # ignore comments
+                    line = line[:-1] # remove last character (space or newline)
+                    splitted_line = line.split(" ") 
+                    splitted_line = [element for element in splitted_line if element != ""]
                     if len(splitted_line) != 3:
-                        print("\n{} SYNTAX ERROR (process.py) at configuration file\n{} at line {}: incorrect number of input configuration parameters. \n\tThe line '{}' must follow this syntax: 'i> <input_type> <input_file_directory>' or 'o> output_directory <output_directory>\n"
-                                .format(strtime(),config_file,line_number,line[:-1]))
+                        print("\n{} SYNTAX ERROR (process.py) at configuration file\n'{}' at line {}: incorrect number of input configuration parameters. \n\tThe line '{}' must follow this syntax:\n\t\t'i> <input_type> <input_file_directory>'\n\tor\n\t\t'o> output_directory <output_directory>\n\tor\n\t\t'm> <marker_parameter_name> <config_value>'\n".format(strtime(),config_file,line_number,line[:-1]))
                     #endif
                     else:
-                        #splitted_line[1] = <input_type>
-                        #splitted_line[2] = <input_file_directory>
-                        io_dict[splitted_line[1]] = splitted_line[2]
-                    #endelse
-                #endif
-
-                elif line.startswith("m>"): # marker parameter config
-                    if len(splitted_line) != 3:
-                        print("\n{} SYNTAX ERROR (process.py) at configuration file\n{} at line {}: incorrect number of input configuration parameters. \n\tThe line '{}' must follow this syntax: 'm> <marker_parameter_name> <config_value>'\n"
-                                .format(strtime(),config_file,line_number,line[:-1]))
-                    #endif
-                    else:
-                        if splitted_line[2][0] == "[" and splitted_line[2][-1] == "]": # is a list definition
-                            splitted_line[2] = splitted_line[2][1:-1] # remove the [ ]
-                            splitted_line[2] = splitted_line[2].split(",") 
-                            splitted_line[2] = [element for element in splitted_line[2] if element != ""] # remove ''
-                            if splitted_line[2]: 
-                                markers_param_dict[splitted_line[1]] = splitted_line[2]
-                            else: # if empty list: do not want to filter by ID
-                                markers_param_dict[splitted_line[1]] = -1 
+                        if line.startswith("m>"): # markers config
+                            if splitted_line[2][0] == "[" and splitted_line[2][-1] == "]": # is a list definition
+                                splitted_line[2] = splitted_line[2][1:-1] # remove the [ ]
+                                splitted_line[2] = splitted_line[2].split(",") 
+                                splitted_line[2] = [element for element in splitted_line[2] if element != ""] # remove ''
+                                if splitted_line[2]: 
+                                    markers_param_dict[splitted_line[1]] = splitted_line[2]
+                                else: # if empty list: do not want to filter by ID
+                                    markers_param_dict[splitted_line[1]] = -1 
+                            #endif
+                            else:
+                                #splitted_line[1] = <marker_parameter_name>
+                                #splitted_line[2] = <config_value>
+                                markers_param_dict[splitted_line[1]] = int(splitted_line[2])
+                            #endelse
                         #endif
-                        else:
-                            #splitted_line[1] = <marker_parameter_name>
-                            #splitted_line[2] = <config_value>
-                            markers_param_dict[splitted_line[1]] = int(splitted_line[2])
+                        else: # io directory name
+                            #splitted_line[1] = <input_type>
+                            #splitted_line[2] = <input_file_directory>
+                            io_dict[splitted_line[1]] = splitted_line[2]
                         #endelse
                     #endelse
-                #endelif
-
+                #endif
                 #else: is a commented line/empty line/invalid line
                 line = pairs_file_stream.readline()
                 line_number = line_number + 1
             #endwhile
         #endwith    
     except IOError:
-        log.write( "%s  ERROR (master.py) - could not open configuration file: %s\n"
-                   %( strtime(), config_file ) )
+        print("{}  ERROR (master.py -> process.py) - could not open configuration file: {}\n".format(strtime(),config_file))
         sys.exit()
 
     print("Configuration File info:\n")
