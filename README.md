@@ -2,6 +2,10 @@
 ANGES extension 
 
 
-WORKING WITH (BRANCH): preliminary_master_script 
-SINCE: MAY 25
-GOAL: improve the master script (master.py) 
+## CURRENT TASK
+#### WORKING WITH (BRANCH): 
+preliminary_master_script branch 
+#### SINCE: 
+MAY 25
+#### GOAL: 
+improve the master script (master.py) 
