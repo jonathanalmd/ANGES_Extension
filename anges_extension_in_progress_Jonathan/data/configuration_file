@@ -7,22 +7,29 @@
 #
 #
 # ------------------ Input files --------------------
-# Where to read the data: homologous_families file and species_tree file
+# Where to read the data: homologous_families directory and species_tree directory
+# Syntax: i>homologous_families <file_directory>
+#         or
+#         i>species_tree <file_directory>
 #
-i>homologous_families GAMBIA_families_500
+i>homologous_families ../data/GAMBIA_families_500
 i>species_tree GAMBIA_species_pairs
 #
 # ---------------- END Input files ------------------
 #
 # ------------- Output directory name ---------------
 # Where to save the output file
+# Syntax: o>output_directory <output_directory>
 #
-o>output
+o>output_directory ../output
 #
 # ----------- END Output directory name -------------
 #
 # ---------------- Markers options ------------------
 # Markers parameters
+# Syntax: m><parameter_name> <int>
+#         or
+#         m><parameter_name> <[list_of_int]>
 #
 m>markers_doubled 0  
                      # 0 = original markers
