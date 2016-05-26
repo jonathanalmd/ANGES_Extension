@@ -104,6 +104,7 @@ def readConfigFile(config_file, len_arguments):
             markers parameters is a dictionary using markers_doubled, ..., filter_by_id as keys and the values
             are the parameter values of each parameter (informed in the configuration file)
     """
+
     # if len_arguments != 2:
     #     print ( "%s  ERROR (master.py) - script called with incorrect number "
     #             "of arguments." %strtime() )
@@ -111,29 +112,49 @@ def readConfigFile(config_file, len_arguments):
     #endif
     
     try:
-        pairs_file_stream = open(config_file, 'r' )
-    except IOError:
-        log.write( "%s  ERROR (master.py) - could not open configuration file: %s\n"
-                   %( strtime(), config_file ) )
-        sys.exit()
-    try:
         with open(config_file, "r") as pairs_file_stream:
             #collect the information from config file
             io_dict = {}
             markers_param_dict = {}
+            line_number = 1
             line = pairs_file_stream.readline()
             while len(line) > 0:
-                if line.startswith("i>"):
-                    pass
-                elif line.startswith("o>"):
-                    pass
-                elif line.startswith("m>"):
-                    pass
+                line = line.rsplit("#",1)[0] # ignore comments
+                line = line[:-1] # remove last character (space or newline)
+                splitted_line = line.split(" ") 
+                splitted_line = [element for element in splitted_line if element != ""] 
+                if line.startswith("i>") or line.startswith("o>"): # input/output files directories
+                    print (splitted_line)
+                    if len(splitted_line) != 3:
+                        print("\n{} SYNTAX ERROR (process.py) at configuration file\n{} at line {}: incorrect number of input configuration parameters. \n\tThe line '{}' must follow this syntax: 'i> <input_type> <input_file_directory>' or 'o> output_directory <output_directory>\n"
+                                .format(strtime(),config_file,line_number,line[:-1]))
+                    #endif
+                    else:
+                        #splitted_line[1] = <input_type>
+                        #splitted_line[2] = <input_file_directory>
+                        io_dict[splitted_line[1]] = splitted_line[2]
+                    #endelse
+                #endif
+
+                elif line.startswith("m>"): # marker parameter config
+                    print (splitted_line)
+                    if len(splitted_line) != 3:
+                        print("\n{} SYNTAX ERROR (process.py) at configuration file\n{} at line {}: incorrect number of input configuration parameters. \n\tThe line '{}' must follow this syntax: 'i> <input_type> <input_file_directory>'\n"
+                                .format(strtime(),config_file,line_number,line[:-1]))
+                    #endif
+                    else:
+                        #splitted_line[1] = <input_type>
+                        #splitted_line[2] = <input_file_directory>
+                        io_dict[splitted_line[1]] = splitted_line[2]
+                    #endelse
+                #endelif
+
                 #else: is a commented line/empty line/invalid line
 
                 line = pairs_file_stream.readline()
+                line_number = line_number + 1
             #endwhile
-        
+        #endwith    
     except IOError:
         log.write( "%s  ERROR (master.py) - could not open configuration file: %s\n"
                    %( strtime(), config_file ) )

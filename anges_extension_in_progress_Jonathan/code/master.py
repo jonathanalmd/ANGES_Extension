@@ -18,8 +18,9 @@ import process
 def main():
     # Parse arguments:
     #hom_fams_file, pairs_file, output_dir
-    
-    io_dict, markers_param_dict = process.readConfigFile(sys.argv[1], len(sys.argv))
+   
+    #sys.argv[1] = ../data/configuration_file 
+    io_dict, markers_param_dict = process.readConfigFile("../data/configuration_file", len(sys.argv))
 
     hom_fams_file = sys.argv[1]
     pairs_file = sys.argv[2]
