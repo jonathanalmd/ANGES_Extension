@@ -9,10 +9,10 @@ from data_structures import markers
 from data_structures import intervals
 from data_structures import genomes
 from data_structures import comparisons
+from data_structures import process
 
 import optimization
 import assembly
-import process
 
 # -------------------------------------------- MAIN ---------------------------------------------------
 def main():
@@ -20,8 +20,14 @@ def main():
     #hom_fams_file, pairs_file, output_dir
    
     #sys.argv[1] = ../data/configuration_file 
-    io_dict, markers_param_dict = process.readConfigFile(sys.argv[1], len(sys.argv))
-     
+
+
+    master_script_obj = process.MasterScript()
+
+    master_script_obj.readConfigFile(sys.argv[1], len(sys.argv))
+    
+    io_dict, markers_param_dict = master_script_obj.getIODictionary()
+
     hom_fams_file = io_dict["homologous_families"]
     pairs_file = io_dict["species_tree"]
     output_dir = io_dict["output_directory"]
@@ -32,6 +38,7 @@ def main():
         print ( "%s  ERROR (master.py) - could not open log file: %s"
                 %( process.strtime(), output_dir + "/log" ) )
         sys.exit()
+
 
     debug = None
     if __debug__:
