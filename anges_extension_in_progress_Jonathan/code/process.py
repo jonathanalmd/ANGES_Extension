@@ -124,7 +124,6 @@ def readConfigFile(config_file, len_arguments):
                 splitted_line = line.split(" ") 
                 splitted_line = [element for element in splitted_line if element != ""] 
                 if line.startswith("i>") or line.startswith("o>"): # input/output files directories
-                    print (splitted_line)
                     if len(splitted_line) != 3:
                         print("\n{} SYNTAX ERROR (process.py) at configuration file\n{} at line {}: incorrect number of input configuration parameters. \n\tThe line '{}' must follow this syntax: 'i> <input_type> <input_file_directory>' or 'o> output_directory <output_directory>\n"
                                 .format(strtime(),config_file,line_number,line[:-1]))
@@ -137,20 +136,29 @@ def readConfigFile(config_file, len_arguments):
                 #endif
 
                 elif line.startswith("m>"): # marker parameter config
-                    print (splitted_line)
                     if len(splitted_line) != 3:
-                        print("\n{} SYNTAX ERROR (process.py) at configuration file\n{} at line {}: incorrect number of input configuration parameters. \n\tThe line '{}' must follow this syntax: 'i> <input_type> <input_file_directory>'\n"
+                        print("\n{} SYNTAX ERROR (process.py) at configuration file\n{} at line {}: incorrect number of input configuration parameters. \n\tThe line '{}' must follow this syntax: 'm> <marker_parameter_name> <config_value>'\n"
                                 .format(strtime(),config_file,line_number,line[:-1]))
                     #endif
                     else:
-                        #splitted_line[1] = <input_type>
-                        #splitted_line[2] = <input_file_directory>
-                        io_dict[splitted_line[1]] = splitted_line[2]
+                        if splitted_line[2][0] == "[" and splitted_line[2][-1] == "]": # is a list definition
+                            splitted_line[2] = splitted_line[2][1:-1] # remove the [ ]
+                            splitted_line[2] = splitted_line[2].split(",") 
+                            splitted_line[2] = [element for element in splitted_line[2] if element != ""] # remove ''
+                            if splitted_line[2]: 
+                                markers_param_dict[splitted_line[1]] = splitted_line[2]
+                            else: # if empty list: do not want to filter by ID
+                                markers_param_dict[splitted_line[1]] = -1 
+                        #endif
+                        else:
+                            #splitted_line[1] = <marker_parameter_name>
+                            #splitted_line[2] = <config_value>
+                            markers_param_dict[splitted_line[1]] = int(splitted_line[2])
+                        #endelse
                     #endelse
                 #endelif
 
                 #else: is a commented line/empty line/invalid line
-
                 line = pairs_file_stream.readline()
                 line_number = line_number + 1
             #endwhile
@@ -159,6 +167,13 @@ def readConfigFile(config_file, len_arguments):
         log.write( "%s  ERROR (master.py) - could not open configuration file: %s\n"
                    %( strtime(), config_file ) )
         sys.exit()
-        
-    return io_dict, markers_param_dict
 
+    print("Configuration File info:\n")
+    for key, value in io_dict.items():
+        print(key, value)
+    for key, value in markers_param_dict.items():
+        print(key, value)
+    print("\n")
+
+    return io_dict, markers_param_dict
+#enddef
