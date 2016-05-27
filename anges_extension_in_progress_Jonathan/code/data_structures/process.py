@@ -102,6 +102,7 @@ class MasterScript:
         self.hom_fam_list = []
         self.gens = {}
         self.adjacencies = intervals.IntervalDict()
+        self.RSIs = intervals.IntervalDict()
 
     def setConfigParams(self, config_file, len_arguments):
         """
@@ -223,6 +224,9 @@ class MasterScript:
     def getAdjacencies(self):
         return self.adjacencies
 
+    def getRSIs(self):
+        return self.RSIs
+
     def parseSpeciesPairs(self):
         for pair in self.pairs_file_stream:
         # Assume format of "<species1> <species2>", respect comments
@@ -291,14 +295,23 @@ class MasterScript:
         for pair in self.species_pairs:
             new_adjacencies = comparisons.find_adjacencies( self.gens[ pair[0] ],
                                                             self.gens[ pair[1] ] )
-        comparisons.add_intervals( self.adjacencies, new_adjacencies )
+            comparisons.add_intervals( self.adjacencies, new_adjacencies )
         comparisons.set_interval_weights( self.adjacencies )
         self.log.write( "{}  Found {} adjacencies with total weight of {}.\n"
-                   .format( process.strtime(),
-                      len( adjacencies ),
-                      adjacencies.total_weight ) )
+                   .format( strtime(),
+                      len( self.adjacencies ),
+                      self.adjacencies.total_weight ) )
         self.log.flush()
         write_intervals( self.adjacencies, self.io_dict["output_directory"] + "/adjacencies", self.log )
 
+    def solveRSIs(self):
+        for pair in self.species_pairs:
+            new_RSIs = comparisons.find_RSIs( self.gens[ pair[0] ], self.gens[ pair[1] ] )
+            comparisons.add_intervals( self.RSIs, new_RSIs )
+        comparisons.set_interval_weights( self.RSIs )
+        self.log.write( "{}  Found {} repeat spanning intervals with total weight of"
+        " {}.\n" .format( strtime(), len( self.RSIs ), self.RSIs.total_weight ) )
+        self.log.flush()
+        write_intervals( self.RSIs, self.io_dict["output_directory"] + "/RSIs", self.log )
 #TODO:
 # - finish the master.py integration with process.py (much work)

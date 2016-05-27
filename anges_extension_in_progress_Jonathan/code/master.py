@@ -20,7 +20,6 @@ def main():
     #hom_fams_file, pairs_file, output_dir
    
     #sys.argv[1] = ../data/configuration_file 
-
     master_script_obj = process.MasterScript()
     master_script_obj.setConfigParams(sys.argv[1], len(sys.argv))
     
@@ -33,6 +32,8 @@ def main():
     master_script_obj.setFileStreams()
     log, debug, hom_fams_stream, pairs_stream = master_script_obj.getFileStreams() # REMOVE LATER
 
+
+    # PARSE PHASE
     # Parse the species pair file, put result in list.
     master_script_obj.parseSpeciesPairs()
     species_pairs = master_script_obj.getSpeciesPairs() # REMOVE LATER
@@ -40,7 +41,10 @@ def main():
     # Parse the hom fams file.
     master_script_obj.read_hom_families_file()
     hom_fams = master_script_obj.getHomFamList() # REMOVE LATER
-    
+ 
+
+
+    # MARKERS PHASE
     #Get all overlapped pairs
     #overlapped_pairs_list = process.getOverlappingPairs(hom_fams) 
   
@@ -48,26 +52,23 @@ def main():
     master_script_obj.doubleMarkers()
     hom_fams = master_script_obj.getHomFamList() # REMOVE LATTER
  
+
+    # GENOME PHASE
     # Construct genome objects, based on hom_fams and a list of all species.
     master_script_obj.constructGenomes()
     gens = master_script_obj.getGenomes() # REMOVE LATER
 
 
+
+    # FIND ADJACENCIES PHASE
     # For each pair of species, compare the species to find adjacencies.
     master_script_obj.solveAdjacencies()
     adjacencies = master_script_obj.getAdjacencies() # REMOVE LATTER
-    
 
     # Do the same for repeat spanning intervals
-    RSIs = intervals.IntervalDict()
-    for pair in species_pairs:
-        new_RSIs = comparisons.find_RSIs( gens[ pair[0] ], gens[ pair[1] ] )
-        comparisons.add_intervals( RSIs, new_RSIs )
-    comparisons.set_interval_weights( RSIs )
-    log.write( "%s  Found %s repeat spanning intervals with total weight of"
-    " %s.\n" %( process.strtime(), len( RSIs ), RSIs.total_weight ) )
-    log.flush()
-    process.write_intervals( RSIs, output_dir + "/RSIs", log )
+    master_script_obj.solveRSIs()
+    RSIs = master_script_obj.getRSIs() # REMOVE LATTER
+
 
     # Select maximal subsets of adjacencies that are realizable.
     realizable_adjacencies = optimization.opt_adjacencies(
@@ -117,6 +118,11 @@ def main():
                      output_dir + "/discarded_RSIs",
                      log )
 
+
+
+
+
+    # ANCESTRAL GENOME CONSTRUCTION PHASE
     # Construct ancestral genome based on realizable intervals.
     ancestor_name = "ANCESTOR"
     ancestor_hom_fams = assembly.assemble(
