@@ -27,50 +27,17 @@ def main():
     master_script_obj = process.MasterScript()
 
     # ------------------------ PARSE PHASE -------------------------------
-    # Parse arguments: 
-    #sys.argv[1] = ../data/configuration_file 
-    master_script_obj.setConfigParams(sys.argv[1], len(sys.argv))
-    master_script_obj.setFileStreams()
-
-    # Parse the species pair file, put result in list.
-    master_script_obj.parseSpeciesPairs()
-
-    # Parse the hom fams file.
-    master_script_obj.read_hom_families_file()
- 
+    master_script_obj.parsePhase(sys.argv[1], len(sys.argv))
 
     # ------------------------- MARKERS PHASE --------------------------
-    #Get all overlapped pairs
-    #overlapped_pairs_list = process.getOverlappingPairs(hom_fams) 
-  
-    # Since the markers are all oriented, double them.
-    master_script_obj.doubleMarkers()
-
+    master_script_obj.markersPhase()
 
     # -------------------------- GENOME PHASE ---------------------------
     # Construct genome objects, based on hom_fams and a list of all species.
-    master_script_obj.constructGenomes()
-
+    master_script_obj.genomePhase()
 
     # -------------------- FIND ADJACENCIES PHASE -----------------------
-    # For each pair of species, compare the species to find adjacencies.
-    master_script_obj.solveAdjacencies()
-
-    # Do the same for repeat spanning intervals
-    master_script_obj.solveRSIs()
-
-    # Select maximal subsets of adjacencies that are realizable.
-    master_script_obj.selectMaxAdjacencies()
-
-    # Keep track of adjacencies that have been discarded.
-    master_script_obj.trackDiscardedAdjacencies()
-
-    # Select maximal subsets of RSIs that are realizable.
-    master_script_obj.selectMaxRSIs()
-
-    # Keep track of RSIs that have been discarded.
-    master_script_obj.trackDiscardedRSIs()
-
+    master_script_obj.adjacenciesPhase()
 
     # -------------- ANCESTRAL GENOME CONSTRUCTION PHASE -----------------
     # Construct ancestral genome based on realizable intervals.

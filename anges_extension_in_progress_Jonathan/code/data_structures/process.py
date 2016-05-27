@@ -114,17 +114,48 @@ class MasterScript:
         self.ancestor_hom_fams = []
         self.ancestor_genomes = {}
 
-    def parsePhase(self):
-        pass
+    def parsePhase(self, config_file_directory, len_input_arguments):
+        # Parse arguments: 
+        #sys.argv[1] = ../data/configuration_file 
+        self.setConfigParams(config_file_directory, len_input_arguments)
+        self.setFileStreams()
+
+        # Parse the species pair file, put result in list.
+        self.parseSpeciesPairs()
+
+        # Parse the hom fams file.
+        self.read_hom_families_file()
+     
 
     def markersPhase(self):
-        pass
+        #Get all overlapped pairs
+        #overlapped_pairs_list = process.getOverlappingPairs(hom_fams) 
+      
+        # Since the markers are all oriented, double them.
+        self.doubleMarkers()
 
     def genomePhase(self):
-        pass
+        self.constructGenomes()
 
     def adjacenciesPhase(self):
-        pass
+        # For each pair of species, compare the species to find adjacencies.
+        self.solveAdjacencies()
+
+        # Do the same for repeat spanning intervals
+        self.solveRSIs()
+
+        # Select maximal subsets of adjacencies that are realizable.
+        self.selectMaxAdjacencies()
+
+        # Keep track of adjacencies that have been discarded.
+        self.trackDiscardedAdjacencies()
+
+        # Select maximal subsets of RSIs that are realizable.
+        self.selectMaxRSIs()
+
+        # Keep track of RSIs that have been discarded.
+        self.trackDiscardedRSIs()
+
 
     def genomeConstructionPhase(self):
         self.ancestor_hom_fams = assembly.assemble(
