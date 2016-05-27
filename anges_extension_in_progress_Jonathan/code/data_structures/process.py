@@ -91,13 +91,12 @@ def write_intervals( ints, f, log ):
 
 class MasterScript:
     def __init__(self):
-        self.log = -1
-        self.debug = -1
-        self.output_dir = -1
         self.io_dict = {}
         self.markers_param_dict = {}
-        self.hom_fams_file_stream = -1
-        self.pairs_file_stream = -1
+        self.log = None
+        self.debug = None
+        self.hom_fams_file_stream = None
+        self.pairs_file_stream = None
 
     def isConfigSyntaxError(self, splitted_line, config_file, line_number):
         if len(splitted_line) != 3: # syntax error
@@ -186,6 +185,7 @@ class MasterScript:
                                 self.io_dict[splitted_line[1]] = splitted_line[2]
                             #endelse
                         #endif
+                        #else: go ahead 
                     #endif
                     #else: is a commented line/empty line/invalid line
                     line = pairs_file_stream.readline()
@@ -211,12 +211,42 @@ class MasterScript:
             print(key, value)
         print("\n")
 
-    def setFileStreams(self, homologous_families, pairs_file):
-        self.log = open( self.output_dir + "/log", 'w' )
-        self.debug = open( self.output_dir + "/debug", 'w' )
+    def setFileStreams(self):
+        try:
+            self.log = open(self.io_dict["output_directory"] + "/log", 'w' )
+        except IOError:
+            print ( "%s  ERROR (master.py) - could not open log file: %s"
+                    %(strtime(), self.io_dict["output_directory"] + "/log" ) )
+            sys.exit()
+        if __debug__:
+            try:
+                self.debug = open(self.io_dict["output_directory"] + "/debug", 'w' )
+            except IOError:
+                log.write( "ERROR (master.py) - could not open debug file %s"
+                           % (self.io_dict["output_directory"] + "/debug") )
+        try:
+            self.pairs_file_stream = open(self.io_dict["species_tree"], 'r')
+        except IOError:
+            log.write( "%s  ERROR (master.py) - could not open pairs file: %s\n"
+                       %(strtime(), self.io_dict["species_tree"]))
+            sys.exit()
+        
+        try:
+            self.hom_fams_file_stream = open(self.io_dict["homologous_families"], 'r')
+        except IOError:
+            log.write( "%s  ERROR (master.py) - could not open homologous families file: %s\n"
+                       %(strtime(), self.io_dict["homologous_families"]))
+            sys.exit()
+
 
     def openIOFiles(hom_fams_file, pairs_file):
         pass
 
     def getIODictionary(self):
         return self.io_dict, self.markers_param_dict
+
+    def getFileStreams(self):
+        return self.log, self.debug, self.hom_fams_file_stream, self.pairs_file_stream
+
+    def setDebug(self):
+        self.debug = 1

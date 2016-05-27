@@ -21,7 +21,6 @@ def main():
    
     #sys.argv[1] = ../data/configuration_file 
 
-
     master_script_obj = process.MasterScript()
 
     master_script_obj.readConfigFile(sys.argv[1], len(sys.argv))
@@ -32,30 +31,10 @@ def main():
     pairs_file = io_dict["species_tree"]
     output_dir = io_dict["output_directory"]
 
-    try:
-        log = open( output_dir + "/log", 'w' )
-    except IOError:
-        print ( "%s  ERROR (master.py) - could not open log file: %s"
-                %( process.strtime(), output_dir + "/log" ) )
-        sys.exit()
-
-
-    debug = None
-    if __debug__:
-        try:
-            debug = open( output_dir + "/debug", 'w' )
-        except IOError:
-            log.write( "ERROR (master.py) - could not open debug file %s"
-                       % (output_dir + "/debug") )
-
+    master_script_obj.setFileStreams()
+    log, debug, hom_fams_stream, pairs_stream = master_script_obj.getFileStreams()
     # Parse the species pair file, put result in list.
     species_pairs = []
-    try:
-        pairs_stream = open( pairs_file, 'r' )
-    except IOError:
-        log.write( "%s  ERROR (master.py) - could not open pairs file: %s\n"
-                   %( process.strtime(), pairs_file ) )
-        sys.exit()
     for pair in pairs_stream:
         # Assume format of "<species1> <species2>", respect comments
         pair = pair.strip()
