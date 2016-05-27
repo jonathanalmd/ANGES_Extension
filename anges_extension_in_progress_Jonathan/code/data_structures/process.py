@@ -238,9 +238,23 @@ class MasterScript:
                        %(strtime(), self.io_dict["homologous_families"]))
             sys.exit()
 
+    def closeLogFile(self):
+        self.log.close()
 
-    def openIOFiles(hom_fams_file, pairs_file):
-        pass
+    def closeDebugFile(self):
+        self.log.close()
+
+    def closePairsFile(self):
+        self.pairs_file_stream.close()
+
+    def closeHomFamsFile(self):
+        self.hom_fams_file_stream.close()
+
+    def closeAllFiles(self):
+        self.closeLogFile()
+        self.closeDebugFile()
+        self.closePairsFile()
+        self.closeHomFamsFile()
 
     def getIODictionary(self):
         return self.io_dict, self.markers_param_dict
@@ -250,3 +264,9 @@ class MasterScript:
 
     def setDebug(self):
         self.debug = 1
+
+
+#TODO:
+# - separated functions to close the file streams 
+# - separated functions to  open the file streams (?)
+# - finish the master.py integration with process.py (much work)

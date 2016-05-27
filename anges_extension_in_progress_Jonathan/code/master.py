@@ -33,6 +33,7 @@ def main():
 
     master_script_obj.setFileStreams()
     log, debug, hom_fams_stream, pairs_stream = master_script_obj.getFileStreams()
+
     # Parse the species pair file, put result in list.
     species_pairs = []
     for pair in pairs_stream:
@@ -46,11 +47,16 @@ def main():
                %( process.strtime(), len( species_pairs ) ) )
     log.flush()
 
+
+
     # Parse the hom fams file.
     hom_fams = markers.read_hom_families_file( hom_fams_file )
     log.write( "%s  Read homologous families from file.\n"
                %( process.strtime() ) )
     log.flush()
+
+
+
     
     #Get all overlapped pairs
     overlapped_pairs_list = process.getOverlappingPairs(hom_fams)
