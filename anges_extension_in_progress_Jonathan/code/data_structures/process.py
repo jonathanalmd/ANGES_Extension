@@ -93,6 +93,7 @@ class MasterScript:
     def __init__(self):
         self.io_dict = {}
         self.markers_param_dict = {}
+
         self.log = None
         self.debug = None
         self.hom_fams_file_stream = None
@@ -101,8 +102,69 @@ class MasterScript:
         self.species_pairs = []
         self.hom_fam_list = []
         self.gens = {}
+        
         self.adjacencies = intervals.IntervalDict()
         self.RSIs = intervals.IntervalDict()
+        self.realizable_adjacencies = intervals.IntervalDict()
+        self.discarded_adjacencies = intervals.IntervalDict()
+        self.realizable_RSIs = intervals.IntervalDict()
+        self.discarded_RSIs = intervals.IntervalDict()
+
+        self.ancestor_name = "ANCESTOR"
+        self.ancestor_hom_fams = []
+        self.ancestor_genomes = {}
+
+    def parsePhase(self):
+        pass
+
+    def markersPhase(self):
+        pass
+
+    def genomePhase(self):
+        pass
+
+    def adjacenciesPhase(self):
+        pass
+
+    def genomeConstructionPhase(self):
+        self.ancestor_hom_fams = assembly.assemble(
+            self.hom_fam_list,
+            self.realizable_adjacencies,
+            self.realizable_RSIs,
+            self.ancestor_name,
+            )
+        markers.write_hom_families_file(
+            self.io_dict["output_directory"] + "/ancestor_hom_fams",
+            self.ancestor_hom_fams,
+            )
+        # To order the hom_fams in chromosomes, create a Genome object with
+        # the new hom_fams.
+        self.ancestor_genomes = genomes.get_genomes(
+            self.ancestor_hom_fams,
+            [ self.ancestor_name ]
+            )
+        ancestor_genome = next( self.ancestor_genomes.itervalues() )
+        try:
+            genome_output = open( self.io_dict["output_directory"] + "/ancestor_genome", 'w' )
+            genome_output.write( ">" + self.ancestor_name + "\n" )
+            for chrom_id, chrom in ancestor_genome.chromosomes.iteritems():
+                genome_output.write( "#" + chrom_id + "\n" )
+                for marker in chrom:
+                    if marker.locus.orientation > 0:
+                        orient = "+"
+                    elif marker.locus.orientation < 0:
+                        orient = "-"
+                    else:
+                        orient = "x"
+                    genome_output.write( marker.id + " " + orient + "\n" )
+        except IOError:
+            self.log.write( "{}  ERROR (master.py) - could not write ancestor genome to " "file: {}\n"
+                            .format(strtime(), self.io_dict["output_directory"] + "/ancestor_genome" ) )
+            sys.exit()
+
+        self.log.write( "{}  Assembled the ancestral genome, found a total of {} CARs.\n"
+                   .format(strtime(), len(ancestor_genome.chromosomes) ) )
+        self.log.write( "{}  Done.\n".format(strtime()) )
 
     def setConfigParams(self, config_file, len_arguments):
         """
@@ -209,6 +271,9 @@ class MasterScript:
         self.closePairsFile()
         self.closeHomFamsFile()
 
+
+
+    # TODO: one method for all of this (maybe?)
     def getFileStreams(self):
         return self.log, self.debug, self.hom_fams_file_stream, self.pairs_file_stream
 
@@ -226,6 +291,21 @@ class MasterScript:
 
     def getRSIs(self):
         return self.RSIs
+
+    def getRealizableAdjacencies(self):
+        return self.realizable_adjacencies
+
+    def getDiscardedAdjacencies(self):
+        return self.discarded_adjacencies
+
+    def getRealizableRSIs(self):
+        return self.realizable_RSIs
+
+    def getDiscardedRSIs(self):
+        return self.discarded_RSIs
+
+
+
 
     def parseSpeciesPairs(self):
         for pair in self.pairs_file_stream:
@@ -313,5 +393,46 @@ class MasterScript:
         " {}.\n" .format( strtime(), len( self.RSIs ), self.RSIs.total_weight ) )
         self.log.flush()
         write_intervals( self.RSIs, self.io_dict["output_directory"] + "/RSIs", self.log )
+
+    def selectMaxAdjacencies(self):
+        self.realizable_adjacencies = optimization.opt_adjacencies(self.hom_fam_list, self.adjacencies)
+        write_intervals( self.realizable_adjacencies, 
+                         self.io_dict["output_directory"] + "/realizable_adjacencies",
+                         self.log
+                        )
+        self.log.write( "{}  Found {} realizable adjacencies with total weight of {}.\n"
+               .format(strtime(),len(self.realizable_adjacencies), self.realizable_adjacencies.total_weight ) )
+        self.log.flush()
+
+    def trackDiscardedAdjacencies(self):
+        for adj in self.adjacencies.itervalues():
+            if not adj.marker_ids in self.realizable_adjacencies:
+                self.discarded_adjacencies.add( adj )
+        write_intervals( self.discarded_adjacencies, self.io_dict["output_directory"] + "/discarded_adjacencies", self.log)
+
+    def selectMaxRSIs(self):
+        self.realizable_RSIs = optimization.opt_RSIs_greedy(
+            self.hom_fam_list,
+            self.realizable_adjacencies,
+            self.RSIs,
+            "mixed",
+            self.debug,
+            )
+        write_intervals( self.realizable_RSIs, self.io_dict["output_directory"] + "/realizable_RSIs", self.log )
+        self.log.write( "{}  Found {} realizable repeat spanning intervals with total weight of {}.\n"
+                   .format(
+                    strtime(),
+                    len(self.realizable_RSIs ),
+                    self.realizable_RSIs.total_weight 
+                    )
+                )
+        self.log.flush()
+
+    def trackDiscardedRSIs(self):
+        for RSI in self.RSIs.itervalues():
+            if not RSI.marker_ids in self.realizable_RSIs:
+                self.discarded_RSIs.add( RSI )
+        write_intervals( self.discarded_RSIs, self.io_dict["output_directory"] + "/discarded_RSIs", self.log )
+
 #TODO:
 # - finish the master.py integration with process.py (much work)
