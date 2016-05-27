@@ -22,70 +22,41 @@ def main():
     #sys.argv[1] = ../data/configuration_file 
 
     master_script_obj = process.MasterScript()
-
     master_script_obj.setConfigParams(sys.argv[1], len(sys.argv))
     
-    io_dict, markers_param_dict = master_script_obj.getIODictionary()
+    io_dict, markers_param_dict = master_script_obj.getIODictionary() # REMOVE LATER
 
-    hom_fams_file = io_dict["homologous_families"]
-    pairs_file = io_dict["species_tree"]
-    output_dir = io_dict["output_directory"]
+    hom_fams_file = io_dict["homologous_families"] # REMOVE LATER
+    pairs_file = io_dict["species_tree"] # REMOVE LATER
+    output_dir = io_dict["output_directory"] # REMOVE LATER
 
     master_script_obj.setFileStreams()
-    log, debug, hom_fams_stream, pairs_stream = master_script_obj.getFileStreams()
+    log, debug, hom_fams_stream, pairs_stream = master_script_obj.getFileStreams() # REMOVE LATER
 
     # Parse the species pair file, put result in list.
-    species_pairs = []
-    for pair in pairs_stream:
-        # Assume format of "<species1> <species2>", respect comments
-        pair = pair.strip()
-        pair = pair.split()
-        if pair[0][0] != "#" and len( pair ) == 2:
-            species_pairs.append( pair )
-    pairs_stream.close()
-    log.write( "%s  Read %s species pairs.\n"
-               %( process.strtime(), len( species_pairs ) ) )
-    log.flush()
-
-
+    master_script_obj.parseSpeciesPairs()
+    species_pairs = master_script_obj.getSpeciesPairs() # REMOVE LATER
 
     # Parse the hom fams file.
-    hom_fams = markers.read_hom_families_file( hom_fams_file )
-    log.write( "%s  Read homologous families from file.\n"
-               %( process.strtime() ) )
-    log.flush()
-
-
-
+    master_script_obj.read_hom_families_file()
+    hom_fams = master_script_obj.getHomFamList() # REMOVE LATER
     
     #Get all overlapped pairs
-    overlapped_pairs_list = process.getOverlappingPairs(hom_fams)
+    #overlapped_pairs_list = process.getOverlappingPairs(hom_fams) 
   
     # Since the markers are all oriented, double them.
-    hom_fams = genomes.double_oriented_markers( hom_fams )
+    master_script_obj.doubleMarkers()
+    hom_fams = master_script_obj.getHomFamList() # REMOVE LATTER
  
     # Construct genome objects, based on hom_fams and a list of all species.
-    gens = genomes.get_genomes(
-        hom_fams,
-        list( set( species for pair in species_pairs for species in pair ) ),
-        )
-    log.write( "%s  Constructed genomes of %s species.\n"
-               %( process.strtime(), len( gens ) ) )
-    log.flush()
+    master_script_obj.constructGenomes()
+    gens = master_script_obj.getGenomes() # REMOVE LATER
+
 
     # For each pair of species, compare the species to find adjacencies.
-    adjacencies = intervals.IntervalDict()
-    for pair in species_pairs:
-        new_adjacencies = comparisons.find_adjacencies( gens[ pair[0] ],
-                                                        gens[ pair[1] ] )
-        comparisons.add_intervals( adjacencies, new_adjacencies )
-    comparisons.set_interval_weights( adjacencies )
-    log.write( "%s  Found %s adjacencies with total weight of %s.\n"
-               %( process.strtime(),
-                  len( adjacencies ),
-                  adjacencies.total_weight ) )
-    log.flush()
-    process.write_intervals( adjacencies, output_dir + "/adjacencies", log )
+    master_script_obj.solveAdjacencies()
+    adjacencies = master_script_obj.getAdjacencies() # REMOVE LATTER
+    
 
     # Do the same for repeat spanning intervals
     RSIs = intervals.IntervalDict()

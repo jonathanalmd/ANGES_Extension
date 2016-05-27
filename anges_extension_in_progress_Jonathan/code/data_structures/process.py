@@ -29,12 +29,12 @@ def getOverlappingPairs(hom_fams):
     for species, species_indexes in loci_dict.items():
         # species name and a list of tuples with (hom_fam_index, locus_index)
         # hom_fam_index => access to hom_fam ID and loci list
-        print (species, species_indexes)
+        #print (species, species_indexes)
         i = 1
         locus1 = hom_fams[species_indexes[0][0]].loci[species_indexes[0][1]]
         while i < len(species_indexes):
             locus2 = hom_fams[species_indexes[i][0]].loci[species_indexes[i][1]]
-            print (locus1, locus2)
+            #print (locus1, locus2)
             is_overlapping_pair = locus1.overlappingPairs(locus2)
             if is_overlapping_pair:
                 overlapping_pairs_list.append(is_overlapping_pair)
@@ -98,6 +98,11 @@ class MasterScript:
         self.hom_fams_file_stream = None
         self.pairs_file_stream = None
 
+        self.species_pairs = []
+        self.hom_fam_list = []
+        self.gens = {}
+        self.adjacencies = intervals.IntervalDict()
+
     def setConfigParams(self, config_file, len_arguments):
         """
         Function to read the configuration file and return all the interpreted information
@@ -126,9 +131,9 @@ class MasterScript:
             config = {}
             execfile(config_file, config)
             #collect the information from config file
-            self.io_dict["homologous_families"] = config["homologous_families"]
-            self.io_dict["species_tree"]        = config["species_tree"]
-            self.io_dict["output_directory"]    = config["output_directory"]
+            self.io_dict["homologous_families"]           = config["homologous_families"]
+            self.io_dict["species_tree"]                  = config["species_tree"]
+            self.io_dict["output_directory"]              = config["output_directory"]
 
             self.markers_param_dict["markers_doubled"]    = config["markers_doubled"]
             self.markers_param_dict["markers_unique"]     = config["markers_unique"]
@@ -136,6 +141,9 @@ class MasterScript:
             self.markers_param_dict["markers_overlap"]    = config["markers_overlap"]
             self.markers_param_dict["filter_copy_number"] = config["filter_copy_number"]
             self.markers_param_dict["filter_by_id"]       = config["filter_by_id"]
+
+            self.debug = config["debug"]
+            
         except IOError:
             print("{}  ERROR (master.py -> process.py) - could not open configuration file: {}\n"
                     .format(strtime(),config_file))
@@ -143,6 +151,9 @@ class MasterScript:
         config.clear()
         self.printDictInfo()
     #enddef
+
+    def getIODictionary(self):
+        return self.io_dict, self.markers_param_dict
 
     def printDictInfo(self):
         print("Configuration File info:\n")
@@ -156,27 +167,27 @@ class MasterScript:
         try:
             self.log = open(self.io_dict["output_directory"] + "/log", 'w' )
         except IOError:
-            print ( "%s  ERROR (master.py) - could not open log file: %s"
-                    %(strtime(), self.io_dict["output_directory"] + "/log" ) )
+            print ( "{}  ERROR (master.py) - could not open log file: {}"
+                    .format(strtime(), self.io_dict["output_directory"] + "/log" ) )
             sys.exit()
         if __debug__:
             try:
                 self.debug = open(self.io_dict["output_directory"] + "/debug", 'w' )
             except IOError:
-                log.write( "ERROR (master.py) - could not open debug file %s"
-                           % (self.io_dict["output_directory"] + "/debug") )
+                log.write( "ERROR (master.py) - could not open debug file {}"
+                           .format(self.io_dict["output_directory"] + "/debug"))
         try:
             self.pairs_file_stream = open(self.io_dict["species_tree"], 'r')
         except IOError:
-            log.write( "%s  ERROR (master.py) - could not open pairs file: %s\n"
-                       %(strtime(), self.io_dict["species_tree"]))
+            log.write( "{}  ERROR (master.py) - could not open pairs file: {}\n"
+                       .format(strtime(), self.io_dict["species_tree"]))
             sys.exit()
         
         try:
             self.hom_fams_file_stream = open(self.io_dict["homologous_families"], 'r')
         except IOError:
-            log.write( "%s  ERROR (master.py) - could not open homologous families file: %s\n"
-                       %(strtime(), self.io_dict["homologous_families"]))
+            log.write( "{}  ERROR (master.py) - could not open homologous families file: {}\n"
+                       .format(strtime(), self.io_dict["homologous_families"]))
             sys.exit()
 
     def closeLogFile(self):
@@ -197,17 +208,97 @@ class MasterScript:
         self.closePairsFile()
         self.closeHomFamsFile()
 
-    def getIODictionary(self):
-        return self.io_dict, self.markers_param_dict
-
     def getFileStreams(self):
         return self.log, self.debug, self.hom_fams_file_stream, self.pairs_file_stream
 
-    def setDebug(self):
-        self.debug = 1
+    def getSpeciesPairs(self):
+        return self.species_pairs
 
+    def getHomFamList(self):
+        return self.hom_fam_list
+    
+    def getGenomes(self):
+        return self.gens
+
+    def getAdjacencies(self):
+        return self.adjacencies
+
+    def parseSpeciesPairs(self):
+        for pair in self.pairs_file_stream:
+        # Assume format of "<species1> <species2>", respect comments
+            pair = pair.strip()
+            pair = pair.split()
+            if pair[0][0] != "#" and len( pair ) == 2:
+                self.species_pairs.append( pair )
+        self.pairs_file_stream.close()
+        self.log.write( "{}  Read {} species pairs.\n"
+                   .format(strtime(), len(self.species_pairs)))
+        self.log.flush()
+
+    # reads hom. families from a file
+    # file_name - str: the name of the file to read from
+    # hom_fam_list - list of HomFam: the list to add to (Default = [])
+    # Return - list of HomFam: the list of hom. familes read
+    def read_hom_families_file(self):
+        line = self.hom_fams_file_stream.readline()
+
+        while len(line) > 0:
+            trunc_line = line.strip()
+
+            if len(trunc_line) > 0:
+                if trunc_line[0] == '>':
+                    # read first hom. family
+                    hom_fam, line = markers.HomFam.from_file(self.hom_fams_file_stream, trunc_line)
+                    if hom_fam != None:
+                        self.hom_fam_list.append(hom_fam)
+                    #endif
+
+                    # read the rest of the hom. families
+                    while len(line) > 0:
+                        hom_fam, line = markers.HomFam.from_file(self.hom_fams_file_stream, line)
+                        if hom_fam != None:
+                            self.hom_fam_list.append(hom_fam)
+                        #endif
+                    #endwhile
+                else:
+                    line = self.hom_fams_file_stream.readline()
+                #endif
+            else:
+                line = self.hom_fams_file_stream.readline()
+            #endif
+        #endif
+
+        self.hom_fams_file_stream.close()
+
+        self.log.write( "{}  Read homologous families from file.\n"
+               .format( strtime() ) )
+        self.log.flush()
+    #enddef
+
+    def doubleMarkers(self):
+        self.hom_fam_list = genomes.double_oriented_markers(self.hom_fam_list)
+
+    def constructGenomes(self):
+        self.gens = genomes.get_genomes(
+            self.hom_fam_list,
+            list( set( species for pair in self.species_pairs for species in pair ) ),
+            )
+        self.log.write( "{}  Constructed genomes of {} species.\n" 
+                        .format( strtime(), len( self.gens ) ) )
+        self.log.flush()
+
+    def solveAdjacencies(self):
+        for pair in self.species_pairs:
+            new_adjacencies = comparisons.find_adjacencies( self.gens[ pair[0] ],
+                                                            self.gens[ pair[1] ] )
+        comparisons.add_intervals( self.adjacencies, new_adjacencies )
+        comparisons.set_interval_weights( self.adjacencies )
+        self.log.write( "{}  Found {} adjacencies with total weight of {}.\n"
+                   .format( process.strtime(),
+                      len( adjacencies ),
+                      adjacencies.total_weight ) )
+        self.log.flush()
+        write_intervals( self.adjacencies, self.io_dict["output_directory"] + "/adjacencies", self.log )
 
 #TODO:
-# - separated functions to close the file streams 
-# - separated functions to  open the file streams (?)
 # - finish the master.py integration with process.py (much work)
