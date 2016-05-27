@@ -23,7 +23,7 @@ def main():
 
     master_script_obj = process.MasterScript()
 
-    master_script_obj.readConfigFile(sys.argv[1], len(sys.argv))
+    master_script_obj.setConfigParams(sys.argv[1], len(sys.argv))
     
     io_dict, markers_param_dict = master_script_obj.getIODictionary()
 

@@ -98,48 +98,7 @@ class MasterScript:
         self.hom_fams_file_stream = None
         self.pairs_file_stream = None
 
-    def isConfigSyntaxError(self, splitted_line, config_file, line_number):
-        if len(splitted_line) != 3: # syntax error
-            print("\n{} SYNTAX ERROR (process.py) in the configuration file\n'{}' at line {}: incorrect number of configuration parameters".format(strtime(), config_file, line_number))
-            print("\tThe line '{}' must follow one of these syntaxes:"
-                    .format(line[:-1]))
-            print("\t\t'i> <input_type> <input_file_directory>'")
-            print("\tor\n\t\t'o> output_directory <output_directory>'")
-            print("\tor\n\t\t'm> <marker_parameter_name> <config_value>'")
-            
-            return True
-        else:
-            return False
-        #endif
-    #enddef
-
-    def dealWithMarkersConfig(self, splitted_line):
-        if splitted_line[2][0] == "[" and splitted_line[2][-1] == "]": # is a list definition
-            splitted_line[2] = splitted_line[2][1:-1] # remove the [ ]
-            splitted_line[2] = splitted_line[2].split(",") 
-            splitted_line[2] = [element for element in splitted_line[2] if element != ""] # remove ''
-            if splitted_line[2]: 
-                self.markers_param_dict[splitted_line[1]] = splitted_line[2]
-            else: # if empty list: do not want to filter by ID
-                self.markers_param_dict[splitted_line[1]] = -1 
-        #endif
-        else:
-            #splitted_line[1] = <marker_parameter_name>
-            #splitted_line[2] = <config_value>
-            self.markers_param_dict[splitted_line[1]] = int(splitted_line[2])
-        #endelse
-    #enddef
-
-    def formatLine(self, line):
-        line = line.rsplit("#",1)[0] # ignore comments
-        line = line[:-1] # remove last character (space or newline)
-        splitted_line = line.split(" ") 
-        splitted_line = [element for element in splitted_line if element != ""]
-
-        return line, splitted_line
-    #enddef
-
-    def readConfigFile(self, config_file, len_arguments):
+    def setConfigParams(self, config_file, len_arguments):
         """
         Function to read the configuration file and return all the interpreted information
         Arguments:
@@ -164,42 +123,24 @@ class MasterScript:
         #endif
         
         try:
-            with open(config_file, "r") as pairs_file_stream:
-                #collect the information from config file
-                syntax_error = False
-                line_number = 1
-                line = pairs_file_stream.readline()
-                while len(line) > 0:
-                    if line.startswith("i>") or line.startswith("o>") or line.startswith("m>"):
-                        # input/output files directories of markers parameter config
-                        line, splitted_line = self.formatLine(line)
-                        syntax_error = self.isConfigSyntaxError(splitted_line, config_file, line_number)
+            config = {}
+            execfile(config_file, config)
+            #collect the information from config file
+            self.io_dict["homologous_families"] = config["homologous_families"]
+            self.io_dict["species_tree"]        = config["species_tree"]
+            self.io_dict["output_directory"]    = config["output_directory"]
 
-                        if not syntax_error:
-                            if line.startswith("m>"): # markers config
-                                self.dealWithMarkersConfig(splitted_line)
-                            #endif
-                            else: # io directory name
-                                #splitted_line[1] = <input_type>
-                                #splitted_line[2] = <input_file_directory>
-                                self.io_dict[splitted_line[1]] = splitted_line[2]
-                            #endelse
-                        #endif
-                        #else: go ahead 
-                    #endif
-                    #else: is a commented line/empty line/invalid line
-                    line = pairs_file_stream.readline()
-                    line_number = line_number + 1
-                #endwhile
-            #endwith    
+            self.markers_param_dict["markers_doubled"]    = config["markers_doubled"]
+            self.markers_param_dict["markers_unique"]     = config["markers_unique"]
+            self.markers_param_dict["markers_universal"]  = config["markers_universal"]
+            self.markers_param_dict["markers_overlap"]    = config["markers_overlap"]
+            self.markers_param_dict["filter_copy_number"] = config["filter_copy_number"]
+            self.markers_param_dict["filter_by_id"]       = config["filter_by_id"]
         except IOError:
             print("{}  ERROR (master.py -> process.py) - could not open configuration file: {}\n"
                     .format(strtime(),config_file))
             sys.exit()
-        
-        if syntax_error:
-            sys.exit()
-
+        config.clear()
         self.printDictInfo()
     #enddef
 
