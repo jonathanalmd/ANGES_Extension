@@ -12,8 +12,8 @@
 #         or
 #         i>species_tree <file_directory>
 #
-i>homologous_families ../data/GAMBIA_families_500
-i>species_tree GAMBIA_species_pairs
+i> homologous_families ../data/GAMBIA_families_500
+i> species_tree ../data/GAMBIA_species_pairs
 #
 # ---------------- END Input files ------------------
 #
@@ -21,7 +21,7 @@ i>species_tree GAMBIA_species_pairs
 # Where to save the output file
 # Syntax: o>output_directory <output_directory>
 #
-o>output_directory ../output
+o> output_directory ../output
 #
 # ----------- END Output directory name -------------
 #
@@ -31,28 +31,28 @@ o>output_directory ../output
 #         or
 #         m><parameter_name> <[list_of_int]>
 #
-m>markers_doubled 0  
+m> markers_doubled 0  
                      # 0 = original markers
                      # 1 = doubled markers
 
-m>markers_unique 1   
+m> markers_unique 1   
                      # 0 = repeated markers allowed
                      # 1 = ingroup unique
                      # 2 = unique
 
-m>markers_universal 2
+m> markers_universal 2
                      # 0 = missing markers allowed
                      # 1 = ingroup universal
                      # 2 = universal
 
-m>markers_overlap 1
+m> markers_overlap 1
                      # 0 = do not returns a list of overlapping markers
                      # 1 = returns a list of overlapping markers
 
-m>filter_copy_number 5 
+m> filter_copy_number 5 
                      # 0 ... N (where N is a natural number)
 
-m>filter_by_id [1,2,3] # [a,b,c,d,...,z] (where a,b,c,d,...,z are natural numbers, ID numbers) 
+m> filter_by_id [1,2,3] # [a,b,c,d,...,z] (where a,b,c,d,...,z are natural numbers, ID numbers) 
 # ------------------ END Markers --------------------
 
 # ---------------------- END ------------------------
