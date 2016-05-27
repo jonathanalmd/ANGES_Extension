@@ -13,80 +13,11 @@ import optimization
 import assembly
 
     
-def getOverlappingPairs(hom_fams):
-    """
-    getOverlappingPairs: receives a list of hom_fams and returns a list of overlapping pairs (each pair is a tuple containing two Locus)
-    hom_fams - HomFam: list of objects from HomFam class
-    """
-        #import pdb; pdb.set_trace()
-    loci_dict = defaultdict(list)
-    overlapping_pairs_list = []
-    for hom_fam_index, marker_family in enumerate(hom_fams):
-        for locus_index, locus in enumerate(marker_family.loci):
-           loci_dict[locus.species].append((hom_fam_index, locus_index))
-        #endfor
-    #endfor
-    for species, species_indexes in loci_dict.items():
-        # species name and a list of tuples with (hom_fam_index, locus_index)
-        # hom_fam_index => access to hom_fam ID and loci list
-        #print (species, species_indexes)
-        i = 1
-        locus1 = hom_fams[species_indexes[0][0]].loci[species_indexes[0][1]]
-        while i < len(species_indexes):
-            locus2 = hom_fams[species_indexes[i][0]].loci[species_indexes[i][1]]
-            #print (locus1, locus2)
-            is_overlapping_pair = locus1.overlappingPairs(locus2)
-            if is_overlapping_pair:
-                overlapping_pairs_list.append(is_overlapping_pair)
-            #endif
-            i = i + 1
-        #endwhile
-    #endfor
-    return overlapping_pairs_list
-#enddef
-
-def filterByID(hom_fams, ids):
-    """ 
-    filterByID: Receives a list of IDs and remove them from the main markers list
-    Returns a list 
-    hom_fams - HomFam: list of HomFam
-    ids - int: list of IDs to be removed from the hom_fams list
-    """
-    return filter(lambda fam: int(fam.id) not in ids, hom_fams)
-
-def filterByCopyNumber(hom_fams, threshold):
-    """
-    filterByCopyNumber: receives a threshold and filter the main markers list by comparing the 
-    copy_number with the threshold (if copy_number > threshold, remove from the list).
-    Returns a list without the filtered markers.
-    hom_fams - HomFam: List of markers
-    theshold - int: filter using the threshold (filter if the copy_number is > threshold)
-    """
-    return filter(lambda fam: fam.copy_number <= threshold, hom_fams)
-
 def strtime():
     """
     Function to format time to string
     """
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-
-
-def write_intervals( ints, f, log ):
-    """
-    Function to write intervals to file
-    Arguments:
-    ints: IntervalDict
-    f: the file to write to
-    log: log stream to write errors to
-    """
-    try:
-        output = open( f, 'w' )
-        for interval in ints.itervalues():
-            output.write( str( interval ) + "\n" )
-    except IOError:
-        log.write( "%s  ERROR (master.py) - could not write intervals to"
-                   "file: %s\n" %( strtime(), f ) )
-        sys.exit()
 
 
 class MasterScript:
@@ -103,6 +34,7 @@ class MasterScript:
         self.hom_fam_list = []
         self.gens = {}
         
+        #TODO: class adjacencies
         self.adjacencies = intervals.IntervalDict()
         self.RSIs = intervals.IntervalDict()
         self.realizable_adjacencies = intervals.IntervalDict()
@@ -110,6 +42,7 @@ class MasterScript:
         self.realizable_RSIs = intervals.IntervalDict()
         self.discarded_RSIs = intervals.IntervalDict()
 
+        #TODO: class ancestor
         self.ancestor_name = "ANCESTOR"
         self.ancestor_hom_fams = []
         self.ancestor_genomes = {}
@@ -393,6 +326,61 @@ class MasterScript:
     def doubleMarkers(self):
         self.hom_fam_list = genomes.double_oriented_markers(self.hom_fam_list)
 
+    def getOverlappingPairs(self):
+        """
+        getOverlappingPairs: receives a list of hom_fams and returns a list of overlapping pairs (each pair is a tuple containing two Locus)
+        hom_fams - HomFam: list of objects from HomFam class
+        """
+        #import pdb; pdb.set_trace()
+        loci_dict = defaultdict(list)
+        overlapping_pairs_list = []
+
+        for hom_fam_index, marker_family in enumerate(self.hom_fam_list):
+            for locus_index, locus in enumerate(marker_family.loci):
+               loci_dict[locus.species].append((hom_fam_index, locus_index))
+            #endfor
+        #endfor
+        for species, species_indexes in loci_dict.items():
+            # species name and a list of tuples with (hom_fam_index, locus_index)
+            # hom_fam_index => access to hom_fam ID and loci list
+            #print (species, species_indexes)
+            i = 1
+            locus1 = self.hom_fam_list[species_indexes[0][0]].loci[species_indexes[0][1]]
+            while i < len(species_indexes):
+                locus2 = self.hom_fam_list[species_indexes[i][0]].loci[species_indexes[i][1]]
+                #print (locus1, locus2)
+                is_overlapping_pair = locus1.overlappingPairs(locus2)
+                if is_overlapping_pair:
+                    overlapping_pairs_list.append(is_overlapping_pair)
+                #endif
+                i = i + 1
+            #endwhile
+        #endfor
+        return overlapping_pairs_list
+    #enddef
+
+    def filterByID(self):
+        """ 
+        filterByID: Receives a list of IDs and remove them from the main markers list
+        Returns a list 
+        hom_fams - HomFam: list of HomFam
+        ids - int: list of IDs to be removed from the hom_fams list
+        """
+        return filter(lambda fam: int(fam.id) not in self.markers_param_dict["filter_by_id"], self.hom_fam_list)
+
+    def filterByCopyNumber(self):
+        """
+        filterByCopyNumber: receives a threshold and filter the main markers list by comparing the 
+        copy_number with the threshold (if copy_number > threshold, remove from the list).
+        Returns a list without the filtered markers.
+        hom_fams - HomFam: List of markers
+        theshold - int: filter using the threshold (filter if the copy_number is > threshold)
+        """
+        return filter(lambda fam: fam.copy_number <= self.markers_param_dict["filter_copy_number"], self.hom_fam_list)
+
+
+
+
     def constructGenomes(self):
         self.gens = genomes.get_genomes(
             self.hom_fam_list,
@@ -401,6 +389,7 @@ class MasterScript:
         self.log.write( "{}  Constructed genomes of {} species.\n" 
                         .format( strtime(), len( self.gens ) ) )
         self.log.flush()
+
 
     def solveAdjacencies(self):
         for pair in self.species_pairs:
@@ -413,7 +402,7 @@ class MasterScript:
                       len( self.adjacencies ),
                       self.adjacencies.total_weight ) )
         self.log.flush()
-        write_intervals( self.adjacencies, self.io_dict["output_directory"] + "/adjacencies", self.log )
+        self.write_intervals( self.adjacencies, self.io_dict["output_directory"] + "/adjacencies")
 
     def solveRSIs(self):
         for pair in self.species_pairs:
@@ -423,13 +412,12 @@ class MasterScript:
         self.log.write( "{}  Found {} repeat spanning intervals with total weight of"
         " {}.\n" .format( strtime(), len( self.RSIs ), self.RSIs.total_weight ) )
         self.log.flush()
-        write_intervals( self.RSIs, self.io_dict["output_directory"] + "/RSIs", self.log )
+        self.write_intervals( self.RSIs, self.io_dict["output_directory"] + "/RSIs")
 
     def selectMaxAdjacencies(self):
         self.realizable_adjacencies = optimization.opt_adjacencies(self.hom_fam_list, self.adjacencies)
-        write_intervals( self.realizable_adjacencies, 
+        self.write_intervals( self.realizable_adjacencies, 
                          self.io_dict["output_directory"] + "/realizable_adjacencies",
-                         self.log
                         )
         self.log.write( "{}  Found {} realizable adjacencies with total weight of {}.\n"
                .format(strtime(),len(self.realizable_adjacencies), self.realizable_adjacencies.total_weight ) )
@@ -439,7 +427,7 @@ class MasterScript:
         for adj in self.adjacencies.itervalues():
             if not adj.marker_ids in self.realizable_adjacencies:
                 self.discarded_adjacencies.add( adj )
-        write_intervals( self.discarded_adjacencies, self.io_dict["output_directory"] + "/discarded_adjacencies", self.log)
+        self.write_intervals( self.discarded_adjacencies, self.io_dict["output_directory"] + "/discarded_adjacencies")
 
     def selectMaxRSIs(self):
         self.realizable_RSIs = optimization.opt_RSIs_greedy(
@@ -449,7 +437,7 @@ class MasterScript:
             "mixed",
             self.debug,
             )
-        write_intervals( self.realizable_RSIs, self.io_dict["output_directory"] + "/realizable_RSIs", self.log )
+        self.write_intervals( self.realizable_RSIs, self.io_dict["output_directory"] + "/realizable_RSIs")
         self.log.write( "{}  Found {} realizable repeat spanning intervals with total weight of {}.\n"
                    .format(
                     strtime(),
@@ -463,7 +451,25 @@ class MasterScript:
         for RSI in self.RSIs.itervalues():
             if not RSI.marker_ids in self.realizable_RSIs:
                 self.discarded_RSIs.add( RSI )
-        write_intervals( self.discarded_RSIs, self.io_dict["output_directory"] + "/discarded_RSIs", self.log )
+        self.write_intervals( self.discarded_RSIs, self.io_dict["output_directory"] + "/discarded_RSIs")
+
+    def write_intervals(self, ints, f):
+        """
+        Function to write intervals to file
+        Arguments:
+        ints: IntervalDict
+        f: the file to write to
+        log: log stream to write errors to
+        """
+        try:
+            output = open( f, 'w' )
+            for interval in ints.itervalues():
+                output.write( str( interval ) + "\n" )
+        except IOError:
+            self.log.write( "%s  ERROR (master.py) - could not write intervals to"
+                       "file: %s\n" %( strtime(), f ) )
+            sys.exit()
+
 
 #TODO:
 # - finish the master.py integration with process.py (much work)

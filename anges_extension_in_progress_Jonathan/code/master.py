@@ -5,14 +5,7 @@
 # python master.py <HomFam data> <species pairs> <output dir>
 import sys
 
-from data_structures import markers
-from data_structures import intervals
-from data_structures import genomes
-from data_structures import comparisons
 from data_structures import process
-
-import optimization
-import assembly
 
 # -------------------------------------------- MAIN ---------------------------------------------------
 def main():
