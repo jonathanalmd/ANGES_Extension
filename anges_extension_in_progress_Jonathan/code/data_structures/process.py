@@ -19,6 +19,150 @@ def strtime():
     """
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
+class MasterMarkers:
+    """
+    Parse and solve markers info
+    """
+    def __init___(self):
+        self.hom_fams_file_stream = None
+        self.pairs_file_stream = None
+
+    def setInputStreams(self, species_tree_dir, hom_fam_dir):
+        try:
+            self.pairs_file_stream = open(species_tree_dir, 'r')
+        except IOError:
+            log.write( "{}  ERROR (master.py) - could not open pairs file: {}\n"
+                       .format(strtime(), self.io_dict["species_tree"]))
+            sys.exit()
+        
+        try:
+            self.hom_fams_file_stream = open(hom_fam_dir, 'r')
+        except IOError:
+            log.write( "{}  ERROR (master.py) - could not open homologous families file: {}\n"
+                       .format(strtime(), self.io_dict["homologous_families"]))
+            sys.exit()
+
+
+    def parseSpeciesPairs(self, log):
+        """
+        Populating the species_pairs list
+        """
+        species_pairs = []
+        for pair in self.pairs_file_stream:
+        # Assume format of "<species1> <species2>", respect comments
+            pair = pair.strip()
+            pair = pair.split()
+            if pair[0][0] != "#" and len( pair ) == 2:
+                species_pairs.append( pair )
+        self.pairs_file_stream.close()
+        log.write( "{}  Read {} species pairs.\n"
+                   .format(strtime(), len(species_pairs)))
+        log.flush()
+
+        return species_pairs
+
+    # reads hom. families from a file
+    # file_name - str: the name of the file to read from
+    # hom_fam_list - list of HomFam: the list to add to (Default = [])
+    # Return - list of HomFam: the list of hom. familes read
+    def parseHomFamilies(self, log):
+        """
+        Populating hom_fam_list
+        """
+        hom_fam_list = []
+        line = self.hom_fams_file_stream.readline()
+        while len(line) > 0:
+            trunc_line = line.strip()
+
+            if len(trunc_line) > 0:
+                if trunc_line[0] == '>':
+                    # read first hom. family
+                    hom_fam, line = markers.HomFam.from_file(self.hom_fams_file_stream, trunc_line)
+                    if hom_fam != None:
+                        hom_fam_list.append(hom_fam)
+                    #endif
+
+                    # read the rest of the hom. families
+                    while len(line) > 0:
+                        hom_fam, line = markers.HomFam.from_file(self.hom_fams_file_stream, line)
+                        if hom_fam != None:
+                            hom_fam_list.append(hom_fam)
+                        #endif
+                    #endwhile
+                else:
+                    line = self.hom_fams_file_stream.readline()
+                #endif
+            else:
+                line = self.hom_fams_file_stream.readline()
+            #endif
+        #endif
+
+        self.hom_fams_file_stream.close()
+
+        log.write( "{}  Read homologous families from file.\n"
+               .format( strtime() ) )
+        log.flush()
+
+        return hom_fam_list
+    #enddef
+
+    def doubleMarkers(self, hom_fam_list):
+        return genomes.double_oriented_markers(hom_fam_list)
+
+    def getOverlappingPairs(self):
+        """
+        getOverlappingPairs: receives a list of hom_fams and returns a list of overlapping pairs (each pair is a tuple containing two Locus)
+        hom_fams - HomFam: list of objects from HomFam class
+        """
+        #import pdb; pdb.set_trace()
+        loci_dict = defaultdict(list)
+        overlapping_pairs_list = []
+
+        for hom_fam_index, marker_family in enumerate(self.hom_fam_list):
+            for locus_index, locus in enumerate(marker_family.loci):
+               loci_dict[locus.species].append((hom_fam_index, locus_index))
+            #endfor
+        #endfor
+        for species, species_indexes in loci_dict.items():
+            # species name and a list of tuples with (hom_fam_index, locus_index)
+            # hom_fam_index => access to hom_fam ID and loci list
+            #print (species, species_indexes)
+            i = 1
+            locus1 = self.hom_fam_list[species_indexes[0][0]].loci[species_indexes[0][1]]
+            while i < len(species_indexes):
+                locus2 = self.hom_fam_list[species_indexes[i][0]].loci[species_indexes[i][1]]
+                #print (locus1, locus2)
+                is_overlapping_pair = locus1.overlappingPairs(locus2)
+                if is_overlapping_pair:
+                    overlapping_pairs_list.append(is_overlapping_pair)
+                #endif
+                i = i + 1
+            #endwhile
+        #endfor
+        return overlapping_pairs_list
+    #enddef
+
+    def filterByID(self):
+        """ 
+        filterByID: Receives a list of IDs and remove them from the main markers list
+        Returns a list 
+        hom_fams - HomFam: list of HomFam
+        ids - int: list of IDs to be removed from the hom_fams list
+        """
+        return filter(lambda fam: int(fam.id) not in self.markers_param_dict["filter_by_id"], self.hom_fam_list)
+
+    def filterByCopyNumber(self):
+        """
+        filterByCopyNumber: receives a threshold and filter the main markers list by comparing the 
+        copy_number with the threshold (if copy_number > threshold, remove from the list).
+        Returns a list without the filtered markers.
+        hom_fams - HomFam: List of markers
+        theshold - int: filter using the threshold (filter if the copy_number is > threshold)
+        """
+        return filter(lambda fam: fam.copy_number <= self.markers_param_dict["filter_copy_number"], self.hom_fam_list)
+
+
+
 
 class MasterScript:
     def __init__(self):
@@ -27,14 +171,15 @@ class MasterScript:
 
         self.log = None
         self.debug = None
-        self.hom_fams_file_stream = None
-        self.pairs_file_stream = None
 
+
+        #TODO: class MasterMarkers
         self.species_pairs = []
         self.hom_fam_list = []
+
         self.gens = {}
         
-        #TODO: class adjacencies
+        #TODO: class MasterAdjacencies
         self.adjacencies = intervals.IntervalDict()
         self.RSIs = intervals.IntervalDict()
         self.realizable_adjacencies = intervals.IntervalDict()
@@ -42,30 +187,34 @@ class MasterScript:
         self.realizable_RSIs = intervals.IntervalDict()
         self.discarded_RSIs = intervals.IntervalDict()
 
-        #TODO: class ancestor
+        #TODO: class MasterAncestor
         self.ancestor_name = "ANCESTOR"
         self.ancestor_hom_fams = []
         self.ancestor_genomes = {}
 
-    def parsePhase(self, config_file_directory, len_input_arguments):
+    def parse_markersPhase(self, config_file_directory, len_input_arguments):
         # Parse arguments: 
         #sys.argv[1] = ../data/configuration_file 
         self.setConfigParams(config_file_directory, len_input_arguments)
-        self.setFileStreams()
-
+        self.setOutputStreams() #set Log and Debug
+        # MasterMarkers class: methods used in order to deal with input files and take information from them (populate the species_pairs list and hom_fam_list)
+        markers_phase_obj = MasterMarkers() 
+        markers_phase_obj.setInputStreams(self.io_dict["species_tree"],self.io_dict["homologous_families"]) #set pairs file stream and hom fams file stream
         # Parse the species pair file, put result in list.
-        self.parseSpeciesPairs()
-
+        self.species_pairs = markers_phase_obj.parseSpeciesPairs(self.log)
         # Parse the hom fams file.
-        self.read_hom_families_file()
-     
+        self.hom_fam_list = markers_phase_obj.parseHomFamilies(self.log)
+        # hom_fam_list and species_pairs list are now populated
 
-    def markersPhase(self):
+        # Filter by ID
+
+        # Filter by Copy Number
+
         #Get all overlapped pairs
         #overlapped_pairs_list = process.getOverlappingPairs(hom_fams) 
-      
+        
         # Since the markers are all oriented, double them.
-        self.doubleMarkers()
+        self.hom_fam_list = markers_phase_obj.doubleMarkers(self.hom_fam_list)
 
     def genomePhase(self):
         self.constructGenomes()
@@ -88,7 +237,6 @@ class MasterScript:
 
         # Keep track of RSIs that have been discarded.
         self.trackDiscardedRSIs()
-
 
     def genomeConstructionPhase(self):
         self.ancestor_hom_fams = assembly.assemble(
@@ -190,7 +338,7 @@ class MasterScript:
             print(key, value)
         print("\n")
 
-    def setFileStreams(self):
+    def setOutputStreams(self):
         try:
             self.log = open(self.io_dict["output_directory"] + "/log", 'w' )
         except IOError:
@@ -203,19 +351,7 @@ class MasterScript:
             except IOError:
                 log.write( "ERROR (master.py) - could not open debug file {}"
                            .format(self.io_dict["output_directory"] + "/debug"))
-        try:
-            self.pairs_file_stream = open(self.io_dict["species_tree"], 'r')
-        except IOError:
-            log.write( "{}  ERROR (master.py) - could not open pairs file: {}\n"
-                       .format(strtime(), self.io_dict["species_tree"]))
-            sys.exit()
-        
-        try:
-            self.hom_fams_file_stream = open(self.io_dict["homologous_families"], 'r')
-        except IOError:
-            log.write( "{}  ERROR (master.py) - could not open homologous families file: {}\n"
-                       .format(strtime(), self.io_dict["homologous_families"]))
-            sys.exit()
+
 
     def closeLogFile(self):
         self.log.close()
@@ -269,114 +405,6 @@ class MasterScript:
         return self.discarded_RSIs
 
 
-
-
-    def parseSpeciesPairs(self):
-        for pair in self.pairs_file_stream:
-        # Assume format of "<species1> <species2>", respect comments
-            pair = pair.strip()
-            pair = pair.split()
-            if pair[0][0] != "#" and len( pair ) == 2:
-                self.species_pairs.append( pair )
-        self.pairs_file_stream.close()
-        self.log.write( "{}  Read {} species pairs.\n"
-                   .format(strtime(), len(self.species_pairs)))
-        self.log.flush()
-
-    # reads hom. families from a file
-    # file_name - str: the name of the file to read from
-    # hom_fam_list - list of HomFam: the list to add to (Default = [])
-    # Return - list of HomFam: the list of hom. familes read
-    def read_hom_families_file(self):
-        line = self.hom_fams_file_stream.readline()
-
-        while len(line) > 0:
-            trunc_line = line.strip()
-
-            if len(trunc_line) > 0:
-                if trunc_line[0] == '>':
-                    # read first hom. family
-                    hom_fam, line = markers.HomFam.from_file(self.hom_fams_file_stream, trunc_line)
-                    if hom_fam != None:
-                        self.hom_fam_list.append(hom_fam)
-                    #endif
-
-                    # read the rest of the hom. families
-                    while len(line) > 0:
-                        hom_fam, line = markers.HomFam.from_file(self.hom_fams_file_stream, line)
-                        if hom_fam != None:
-                            self.hom_fam_list.append(hom_fam)
-                        #endif
-                    #endwhile
-                else:
-                    line = self.hom_fams_file_stream.readline()
-                #endif
-            else:
-                line = self.hom_fams_file_stream.readline()
-            #endif
-        #endif
-
-        self.hom_fams_file_stream.close()
-
-        self.log.write( "{}  Read homologous families from file.\n"
-               .format( strtime() ) )
-        self.log.flush()
-    #enddef
-
-    def doubleMarkers(self):
-        self.hom_fam_list = genomes.double_oriented_markers(self.hom_fam_list)
-
-    def getOverlappingPairs(self):
-        """
-        getOverlappingPairs: receives a list of hom_fams and returns a list of overlapping pairs (each pair is a tuple containing two Locus)
-        hom_fams - HomFam: list of objects from HomFam class
-        """
-        #import pdb; pdb.set_trace()
-        loci_dict = defaultdict(list)
-        overlapping_pairs_list = []
-
-        for hom_fam_index, marker_family in enumerate(self.hom_fam_list):
-            for locus_index, locus in enumerate(marker_family.loci):
-               loci_dict[locus.species].append((hom_fam_index, locus_index))
-            #endfor
-        #endfor
-        for species, species_indexes in loci_dict.items():
-            # species name and a list of tuples with (hom_fam_index, locus_index)
-            # hom_fam_index => access to hom_fam ID and loci list
-            #print (species, species_indexes)
-            i = 1
-            locus1 = self.hom_fam_list[species_indexes[0][0]].loci[species_indexes[0][1]]
-            while i < len(species_indexes):
-                locus2 = self.hom_fam_list[species_indexes[i][0]].loci[species_indexes[i][1]]
-                #print (locus1, locus2)
-                is_overlapping_pair = locus1.overlappingPairs(locus2)
-                if is_overlapping_pair:
-                    overlapping_pairs_list.append(is_overlapping_pair)
-                #endif
-                i = i + 1
-            #endwhile
-        #endfor
-        return overlapping_pairs_list
-    #enddef
-
-    def filterByID(self):
-        """ 
-        filterByID: Receives a list of IDs and remove them from the main markers list
-        Returns a list 
-        hom_fams - HomFam: list of HomFam
-        ids - int: list of IDs to be removed from the hom_fams list
-        """
-        return filter(lambda fam: int(fam.id) not in self.markers_param_dict["filter_by_id"], self.hom_fam_list)
-
-    def filterByCopyNumber(self):
-        """
-        filterByCopyNumber: receives a threshold and filter the main markers list by comparing the 
-        copy_number with the threshold (if copy_number > threshold, remove from the list).
-        Returns a list without the filtered markers.
-        hom_fams - HomFam: List of markers
-        theshold - int: filter using the threshold (filter if the copy_number is > threshold)
-        """
-        return filter(lambda fam: fam.copy_number <= self.markers_param_dict["filter_copy_number"], self.hom_fam_list)
 
 
 

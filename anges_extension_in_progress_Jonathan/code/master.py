@@ -19,11 +19,8 @@ def main():
     """
     master_script_obj = process.MasterScript()
 
-    # ------------------------ PARSE PHASE -------------------------------
-    master_script_obj.parsePhase(sys.argv[1], len(sys.argv))
-
-    # ------------------------- MARKERS PHASE --------------------------
-    master_script_obj.markersPhase()
+    # ------------------------ PARSE_MARKERS PHASE -------------------------------
+    master_script_obj.parse_markersPhase(sys.argv[1], len(sys.argv))
 
     # -------------------------- GENOME PHASE ---------------------------
     # Construct genome objects, based on hom_fams and a list of all species.
