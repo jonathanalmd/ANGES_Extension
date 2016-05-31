@@ -342,3 +342,21 @@ def write_intervals_file(file_name, interval_list):
 
     file_stream.close()
 #enddef
+
+def write_intervals(log, ints, f):
+    """
+    Function to write intervals to file
+    Arguments:
+    ints: IntervalDict
+    f: the file to write to
+    log: log stream to write errors to
+    """
+    try:
+        output = open( f, 'w' )
+        for interval in ints.itervalues():
+            output.write( str( interval ) + "\n" )
+    except IOError:
+        log.write( "%s  ERROR (master.py) - could not write intervals to"
+                   "file: %s\n" %( strtime(), f ) )
+        sys.exit()
+#enddef

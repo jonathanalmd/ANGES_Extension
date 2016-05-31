@@ -22,16 +22,12 @@ def main():
     # ------------------------ PARSE_MARKERS PHASE -------------------------------
     master_script_obj.parse_markersPhase(sys.argv[1], len(sys.argv))
 
-    # -------------------------- GENOME PHASE ---------------------------
-    # Construct genome objects, based on hom_fams and a list of all species.
-    master_script_obj.genomePhase()
-
     # -------------------- FIND ADJACENCIES PHASE -----------------------
+    # Construct genome objects, based on hom_fams and a list of all species and deal with adjacencies
     master_script_obj.adjacenciesPhase()
 
     # -------------- ANCESTRAL GENOME CONSTRUCTION PHASE -----------------
     # Construct ancestral genome based on realizable intervals.
-
     master_script_obj.genomeConstructionPhase() # TODO: SPLIT
 
 
