@@ -141,6 +141,8 @@ class MasterMarkers:
                 i = i + 1
             #endwhile
         #endfor
+        log.write("{}  {} overlapping pairs have been found.\n"
+                    .format(strtime(), len(overlapping_pairs_list)))
         return overlapping_pairs_list
     #enddef
 
@@ -151,7 +153,13 @@ class MasterMarkers:
         hom_fams - HomFam: list of HomFam
         ids - int: list of IDs to be removed from the hom_fams list
         """
-        return filter(lambda fam: int(fam.id) not in id_list, hom_fam_list)
+        id_list = []
+        filtered_list = filter(lambda fam: int(fam.id) not in id_list, hom_fam_list)
+        for hom_fam in filtered_list:
+            id_list.append(int(hom_fam.id))
+        log.write( "{}  IDs {} filtred from homologous families list.\n"
+                .format(strtime(), id_list))
+        return filtered_list
     #enddef
 
     def filterByCopyNumber(self, copy_number_threshold, hom_fam_list, log):
@@ -162,7 +170,11 @@ class MasterMarkers:
         hom_fams - HomFam: List of markers
         theshold - int: filter using the threshold (filter if the copy_number is > threshold)
         """
-        return filter(lambda fam: fam.copy_number <= copy_number_threshold, hom_fam_list)
+        filtered_list = filter(lambda fam: fam.copy_number <= copy_number_threshold, hom_fam_list)
+        filtered_quant = len(hom_fam_list) - len(filtered_list)
+        log.write("{}  Filtered {} homologous families with Copy Number greater than {}.\n"
+                    .format(strtime(), filtered_quant, copy_number_threshold ))
+        return filtered_list
      #enddef
  
     def closePairsFile(self):
@@ -474,7 +486,8 @@ class MasterScript:
 
     def parse_markersPhase(self, config_file_directory, len_input_arguments):
         """
-        Uses: MarkersMaster class object
+        Deal with everything realated to input (configuration, markers and species pairs) in order to take information from these files
+
         """
         # Parse arguments: 
         #sys.argv[1] = ../data/configuration_file 
@@ -491,15 +504,15 @@ class MasterScript:
 
         # Filter by ID
         if self.markers_param_dict["filter_by_id"]:
-            self.hom_fam_list = markers_phase_obj.filterByID(self.markers_param_dict["filter_by_id"], self.hom_fam_list)
+            self.hom_fam_list = markers_phase_obj.filterByID(self.markers_param_dict["filter_by_id"], self.hom_fam_list, self.log)
 
         # Filter by Copy Number
         if self.markers_param_dict["filter_copy_number"] != 0:
-            self.hom_fam_list = markers_phase_obj.filterByCopyNumber(self.markers_param_dict["filter_copy_number"], self.hom_fam_list)
+            self.hom_fam_list = markers_phase_obj.filterByCopyNumber(self.markers_param_dict["filter_copy_number"], self.hom_fam_list, self.log)
 
         #Get all overlapped pairs
         if self.markers_param_dict["markers_overlap"] == 1:
-            self.overlapping_pairs_list = process.getOverlappingPairs(hom_fams) 
+            self.overlapping_pairs_list = markers_phase_obj.getOverlappingPairs(self.hom_fam_list, self.log)
         
         # Since the markers are all oriented, double them.
         self.hom_fam_list = markers_phase_obj.doubleMarkers(self.hom_fam_list)
