@@ -66,7 +66,7 @@ class MasterMarkers:
     # file_name - str: the name of the file to read from
     # hom_fam_list - list of HomFam: the list to add to (Default = [])
     # Return - list of HomFam: the list of hom. familes read
-    def parseHomFamilies(self, log):
+    def parseHomFamilies(self, hom_fam_dir, log):
         """
         Populates hom_fam_list
         """
@@ -79,14 +79,14 @@ class MasterMarkers:
             if len(trunc_line) > 0:
                 if trunc_line[0] == '>':
                     # read first hom. family
-                    hom_fam, line = markers.HomFam.from_file(self.hom_fams_file_stream, trunc_line, line_number)
+                    hom_fam, line = markers.HomFam.from_file(self.hom_fams_file_stream, trunc_line, line_number, hom_fam_dir)
                     if hom_fam != None:
                         hom_fam_list.append(hom_fam)
                     #endif
 
                     # read the rest of the hom. families
                     while len(line) > 0:
-                        hom_fam, line = markers.HomFam.from_file(self.hom_fams_file_stream, line, line_number)
+                        hom_fam, line = markers.HomFam.from_file(self.hom_fams_file_stream, line, line_number, hom_fam_dir)
                         if hom_fam != None:
                             hom_fam_list.append(hom_fam)
                         #endif
@@ -502,7 +502,7 @@ class MasterScript:
         # Parse the species pair file, put result in list.
         self.species_pairs = markers_phase_obj.parseSpeciesPairs(self.log)
         # Parse the hom fams file.
-        self.hom_fam_list = markers_phase_obj.parseHomFamilies(self.log)
+        self.hom_fam_list = markers_phase_obj.parseHomFamilies(self.io_dict["homologous_families"], self.log)
         # hom_fam_list and species_pairs list are now populated
 
         # Filter by ID

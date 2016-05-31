@@ -78,7 +78,7 @@ class Locus:
     # string - str: the string to parse
     # Return Locus - the locus in the file (None on failure)
     @staticmethod
-    def from_string(string,line_number):
+    def from_string(string,line_number, hom_fam_dir):
         #assert type(string) is str
 
         trunc_str = string.strip()
@@ -106,14 +106,14 @@ class Locus:
             try:
                 start = int(split_str[2])
             except:
-                print("Syntax Error at line {}: '{}'\n\t Start coordinate not an integer for locus. ".format(line_number,full_str))
+                print("Syntax Error at line {} (file: {}): '{}'\n\t Start coordinate not an integer for locus. ".format(line_number,hom_fam_dir,full_str))
                 return None
             #endtry
 
             try:
                 end = int(split_str[2])
             except:
-                print("Syntax Error at line {}: '{}'\n\t End coordinate not an integer for locus. ".format(line_number,full_str))
+                print("Syntax Error at line {} (file: {}): '{}'\n\t End coordinate not an integer for locus. ".format(line_number,hom_fam_dir,full_str))
                 return None
             #endtry
 
@@ -129,7 +129,7 @@ class Locus:
                 elif trunc_str[0].lower == 'x':
                     orientation = 0
                 else:
-                    print("Syntax Error at line {}: '{}'\n\t Unknown orientation for locus. ".format(line_number,full_str))
+                    print("Syntax Error at line {} (file: {}): '{}'\n\t Unknown orientation for locus. ".format(line_number,hom_fam_dir,full_str))
                     return None
                 #endif
             #endif
@@ -154,7 +154,7 @@ class Locus:
         try:
             start = int(start)
         except:
-            print("Syntax Error at line {}: '{}'\n\t Start coordinate not an integer for locus. ".format(line_number,full_str))
+            print("Syntax Error at line {} (file: {}): '{}'\n\t Start coordinate not an integer for locus. ".format(line_number,hom_fam_dir,full_str))
             return None
         #endtry
 
@@ -165,7 +165,7 @@ class Locus:
         try:
             end = int(end)
         except:
-            print("Syntax Error at line {}: '{}'\n\t End coordinate not an integer for locus. ".format(line_number,full_str))
+            print("Syntax Error at line {} (file: {}): '{}'\n\t End coordinate not an integer for locus. ".format(line_number,hom_fam_dir,full_str))
             return None
         #endtry
 
@@ -181,7 +181,7 @@ class Locus:
             elif trunc_str[0].lower == 'x':
                 orientation = 0
             else:
-                print("Syntax Error at line {}: '{}'\n\t Unknown orientation for locus. ".format(line_number,full_str))
+                print("Syntax Error at line {} (file: {}): '{}'\n\t Unknown orientation for locus. ".format(line_number,hom_fam_dir,full_str))
                 return None
             #endif
         #endif
@@ -367,7 +367,7 @@ class HomFam:
     # first_line - the first line of the file_stream if already read from otherwise None
     # Return - HomFam
     @staticmethod
-    def from_file(file_stream, first_line, line_number):
+    def from_file(file_stream, first_line, line_number, hom_fam_dir):
         #assert type(file_stream) is file
         #assert type(first_line) is str
 
@@ -394,7 +394,7 @@ class HomFam:
                 #endif
 
                 if hom_fam != None:
-                    locus = Locus.from_string(line, line_number)
+                    locus = Locus.from_string(line, line_number, hom_fam_dir)
 
                     if locus != None:
                         hom_fam.loci.append(locus)
