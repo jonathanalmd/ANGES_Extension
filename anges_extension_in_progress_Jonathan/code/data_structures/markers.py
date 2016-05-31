@@ -78,7 +78,7 @@ class Locus:
     # string - str: the string to parse
     # Return Locus - the locus in the file (None on failure)
     @staticmethod
-    def from_string(string):
+    def from_string(string,line_number):
         #assert type(string) is str
 
         trunc_str = string.strip()
@@ -98,7 +98,7 @@ class Locus:
         trunc_str = comment_split[0].strip()
 
         # using space separated format
-        split_str =     trunc_str.split()
+        split_str = trunc_str.split()
         if len(split_str) >= 4:
             species = split_str[0]
             chromosome = split_str[1]
@@ -106,14 +106,14 @@ class Locus:
             try:
                 start = int(split_str[2])
             except:
-                print("Warning: start coordinate not an integer for locus. String : \'" + full_str + "\'")
+                print("Syntax Error at line {}: '{}'\n\t Start coordinate not an integer for locus. ".format(line_number,full_str))
                 return None
             #endtry
 
             try:
                 end = int(split_str[2])
             except:
-                print("Warning: end coordinate not an integer for locus. String : \'" + full_str + "\'")
+                print("Syntax Error at line {}: '{}'\n\t End coordinate not an integer for locus. ".format(line_number,full_str))
                 return None
             #endtry
 
@@ -129,14 +129,13 @@ class Locus:
                 elif trunc_str[0].lower == 'x':
                     orientation = 0
                 else:
-                    print("Warning: unknown orientation for locus. String : \'" + full_str + "\'")
+                    print("Syntax Error at line {}: '{}'\n\t Unknown orientation for locus. ".format(line_number,full_str))
                     return None
                 #endif
             #endif
 
             return Locus(species, chromosome, start, end, orientation, comment)
         #endif
-
         # using old format
         species, trunc_str = Locus.obj_split(trunc_str, ".", 2, full_str, "species")
         if trunc_str == None:
@@ -155,7 +154,7 @@ class Locus:
         try:
             start = int(start)
         except:
-            print("Warning: start coordinate not an integer for locus. String : \'" + full_str + "\'")
+            print("Syntax Error at line {}: '{}'\n\t Start coordinate not an integer for locus. ".format(line_number,full_str))
             return None
         #endtry
 
@@ -166,7 +165,7 @@ class Locus:
         try:
             end = int(end)
         except:
-            print("Warning: end coordinate not an integer for locus. String : \'" + full_str + "\'")
+            print("Syntax Error at line {}: '{}'\n\t End coordinate not an integer for locus. ".format(line_number,full_str))
             return None
         #endtry
 
@@ -182,7 +181,7 @@ class Locus:
             elif trunc_str[0].lower == 'x':
                 orientation = 0
             else:
-                print("Warning: unknown orientation for locus. String : \'" + full_str + "\'")
+                print("Syntax Error at line {}: '{}'\n\t Unknown orientation for locus. ".format(line_number,full_str))
                 return None
             #endif
         #endif
@@ -368,7 +367,7 @@ class HomFam:
     # first_line - the first line of the file_stream if already read from otherwise None
     # Return - HomFam
     @staticmethod
-    def from_file(file_stream, first_line):
+    def from_file(file_stream, first_line, line_number):
         #assert type(file_stream) is file
         #assert type(first_line) is str
 
@@ -390,12 +389,12 @@ class HomFam:
             line = line.strip()
 
             if len(line) > 0:
-                if line[0]== '>':
+                if line[0]== '>': # new hom family
                     break
                 #endif
 
                 if hom_fam != None:
-                    locus = Locus.from_string(line)
+                    locus = Locus.from_string(line, line_number)
 
                     if locus != None:
                         hom_fam.loci.append(locus)
@@ -404,6 +403,7 @@ class HomFam:
             #endif
 
             line = file_stream.readline()
+            line_number = line_number + 1
         #endwhile
 
         return hom_fam, line

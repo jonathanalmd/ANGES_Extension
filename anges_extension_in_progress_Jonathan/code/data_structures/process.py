@@ -68,9 +68,10 @@ class MasterMarkers:
     # Return - list of HomFam: the list of hom. familes read
     def parseHomFamilies(self, log):
         """
-        Populating hom_fam_list
+        Populates hom_fam_list
         """
         hom_fam_list = []
+        line_number = 1
         line = self.hom_fams_file_stream.readline()
         while len(line) > 0:
             trunc_line = line.strip()
@@ -78,23 +79,25 @@ class MasterMarkers:
             if len(trunc_line) > 0:
                 if trunc_line[0] == '>':
                     # read first hom. family
-                    hom_fam, line = markers.HomFam.from_file(self.hom_fams_file_stream, trunc_line)
+                    hom_fam, line = markers.HomFam.from_file(self.hom_fams_file_stream, trunc_line, line_number)
                     if hom_fam != None:
                         hom_fam_list.append(hom_fam)
                     #endif
 
                     # read the rest of the hom. families
                     while len(line) > 0:
-                        hom_fam, line = markers.HomFam.from_file(self.hom_fams_file_stream, line)
+                        hom_fam, line = markers.HomFam.from_file(self.hom_fams_file_stream, line, line_number)
                         if hom_fam != None:
                             hom_fam_list.append(hom_fam)
                         #endif
                     #endwhile
                 else:
                     line = self.hom_fams_file_stream.readline()
+                    line_number = line_number + 1
                 #endif
             else:
                 line = self.hom_fams_file_stream.readline()
+                line_number = line_number + 1
             #endif
         #endif
 
