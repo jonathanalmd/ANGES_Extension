@@ -111,7 +111,7 @@ class MasterMarkers:
         return genomes.double_oriented_markers(hom_fam_list)
     #enddef
 
-    def getOverlappingPairs(self):
+    def getOverlappingPairs(self, hom_fam_list, log):
         """
         getOverlappingPairs: receives a list of hom_fams and returns a list of overlapping pairs (each pair is a tuple containing two Locus)
         hom_fams - HomFam: list of objects from HomFam class
@@ -120,7 +120,7 @@ class MasterMarkers:
         loci_dict = defaultdict(list)
         overlapping_pairs_list = []
 
-        for hom_fam_index, marker_family in enumerate(self.hom_fam_list):
+        for hom_fam_index, marker_family in enumerate(hom_fam_list):
             for locus_index, locus in enumerate(marker_family.loci):
                loci_dict[locus.species].append((hom_fam_index, locus_index))
             #endfor
@@ -130,9 +130,9 @@ class MasterMarkers:
             # hom_fam_index => access to hom_fam ID and loci list
             #print (species, species_indexes)
             i = 1
-            locus1 = self.hom_fam_list[species_indexes[0][0]].loci[species_indexes[0][1]]
+            locus1 = hom_fam_list[species_indexes[0][0]].loci[species_indexes[0][1]]
             while i < len(species_indexes):
-                locus2 = self.hom_fam_list[species_indexes[i][0]].loci[species_indexes[i][1]]
+                locus2 = hom_fam_list[species_indexes[i][0]].loci[species_indexes[i][1]]
                 #print (locus1, locus2)
                 is_overlapping_pair = locus1.overlappingPairs(locus2)
                 if is_overlapping_pair:
@@ -144,7 +144,7 @@ class MasterMarkers:
         return overlapping_pairs_list
     #enddef
 
-    def filterByID(self, id_list, hom_fam_list):
+    def filterByID(self, id_list, hom_fam_list, log):
         """ 
         filterByID: Receives a list of IDs and remove them from the main markers list
         Returns a list 
@@ -154,7 +154,7 @@ class MasterMarkers:
         return filter(lambda fam: int(fam.id) not in id_list, hom_fam_list)
     #enddef
 
-    def filterByCopyNumber(self, copy_number_threshold, hom_fam_list):
+    def filterByCopyNumber(self, copy_number_threshold, hom_fam_list, log):
         """
         filterByCopyNumber: receives a threshold and filter the main markers list by comparing the 
         copy_number with the threshold (if copy_number > threshold, remove from the list).
@@ -294,6 +294,21 @@ class MasterGenConstruction:
         return self.gens
     #enddef
 
+    # writes hom. families to a file
+    # file_name - str: the name of the file to write to
+    # hom_fam_list - list of HomFam: the list to write (Default = [])
+    def writeAncestorHomFams(self,file_name):
+        file_stream = open(file_name, 'w')
+
+        for hom_fam in self.ancestor_hom_fams:
+            hom_fam.to_file( file_stream )
+            file_stream.write("\n")
+            file_stream.flush()
+        #endif
+
+        file_stream.close()
+    #enddef
+
     def constructGenomes(self, species_pairs, hom_fam_list, log):
         self.gens = genomes.get_genomes(
             hom_fam_list,
@@ -331,13 +346,12 @@ class MasterGenConstruction:
             self.RSI.realizable_RSIs,
             self.ancestor_name,
             )
-        markers.write_hom_families_file(
+        self.writeAncestorHomFams(
             output_directory + "/ancestor_hom_fams",
-            self.ancestor_hom_fams,
             )
         # To order the hom_fams in chromosomes, create a Genome object with
         # the new hom_fams.
-        self.ancestor_genomes = genomes.get_genomes(
+        self.ancestor_genomes = genomes.get_genomes( 
             self.ancestor_hom_fams,
             [ self.ancestor_name ]
             )
@@ -367,6 +381,21 @@ class MasterGenConstruction:
 #endclass
 
 class MasterScript:
+    """
+    MasterScript Class: coordinates the main process using some aux classes
+    A MasterScript object must have all the most important information regarding homologous families and spcecies pairs and this object will coordinate all phases 
+    io_dict - {string : string}: dictionary that will be populated based on the configuration.conf file 
+                                this dictionary will have all the IO directories
+    markers_param_dict - {string : int} or {string : [int]}: also will be populated based on the configuration.conf file (parse_markersPhase)
+                                this dictionary will have all the markers running parameters (different execution modes)
+    log - filestream: stream for the log file
+    debug - filestream: stream for the debug file
+    species_pairs: list of species_pairs -> populated based on the species_pairs file, during the parse_markersPhase
+    hom_fam_list: list of homologous families -> populated based on the hom_fams_file, during the parse_markersPhase
+    overlapped_pairs_list: list of overlapping pairs, populated based on the hom_fam_list, during the parse_markersPhase
+    genome_construction_obj - MasterGenConstruction class object -> this object deal with adjacenciesPhase and genomeConstructionPhase and 
+                                                                    has information regarding gens, adjacencies, ancestral genomes (including methods to manipulate these information)  
+    """
     def __init__(self):
         self.io_dict = {}
         self.markers_param_dict = {}
@@ -376,7 +405,7 @@ class MasterScript:
     
         self.species_pairs = []
         self.hom_fam_list = []
-        self.overlapped_pairs_list = []
+        self.overlapping_pairs_list = []
         self.genome_construction_obj = MasterGenConstruction()
     #enddef
 
@@ -470,10 +499,12 @@ class MasterScript:
 
         #Get all overlapped pairs
         if self.markers_param_dict["markers_overlap"] == 1:
-            self.overlapped_pairs_list = process.getOverlappingPairs(hom_fams) 
+            self.overlapping_pairs_list = process.getOverlappingPairs(hom_fams) 
         
         # Since the markers are all oriented, double them.
         self.hom_fam_list = markers_phase_obj.doubleMarkers(self.hom_fam_list)
+
+        del markers_phase_obj
     #enddef
 
     def adjacenciesPhase(self):
@@ -485,7 +516,21 @@ class MasterScript:
     def genomeConstructionPhase(self):
         self.genome_construction_obj.dealWithConstructionPhase(self.hom_fam_list, self.io_dict["output_directory"], self.log)
     #enddef
-    
+
+    # finds a HomFam in a list given a marker id
+    # hom_fam_list - list of HomFam: the list to look in
+    # marker_id - str: the marker_id to look for
+    # Return - HomFam: the hom. family with marker id, marker_id
+    def findHomFam(marker_id):
+        # Filter the list
+        matches = filter( lambda hom_fam: hom_fam.id == marker_id, self.hom_fam_list )
+        # Return first element of the list
+        if matches:
+            return matches[0]
+        else:
+            return None
+    #enddef
+
     def closeLogFile(self):
         self.log.close()
     #enddef
