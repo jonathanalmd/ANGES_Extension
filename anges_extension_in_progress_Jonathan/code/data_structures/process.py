@@ -207,10 +207,10 @@ class MasterAdjacencies:
         return self.discarded_adjacencies
     #enddef
 
-    def solveAdjacencies(self, species_pairs, gens, output_directory, log):
+    def solveAdjacencies(self, species_pairs, gens, output_directory, log, all_match):
         for pair in species_pairs:
             new_adjacencies = comparisons.find_adjacencies( gens[ pair[0] ],
-                                                            gens[ pair[1] ] )
+                                                            gens[ pair[1] ], all_match)
             comparisons.add_intervals( self.adjacencies, new_adjacencies )
         comparisons.set_interval_weights( self.adjacencies )
         log.write( "{}  Found {} adjacencies with total weight of {}.\n"
@@ -258,9 +258,9 @@ class MasterRSI:
         return self.discarded_RSIs
     #enddef
 
-    def solveRSIs(self, species_pairs, gens, output_directory, log):
+    def solveRSIs(self, species_pairs, gens, output_directory, log, all_match):
         for pair in species_pairs:
-            new_RSIs = comparisons.find_RSIs(gens[ pair[0] ], gens[ pair[1] ] )
+            new_RSIs = comparisons.find_RSIs(gens[ pair[0] ], gens[ pair[1] ], all_match)
             comparisons.add_intervals( self.RSIs, new_RSIs )
         comparisons.set_interval_weights( self.RSIs )
         log.write( "{}  Found {} repeat spanning intervals with total weight of"
@@ -334,12 +334,12 @@ class MasterGenConstruction:
         log.flush()
     #enddef
 
-    def dealWithAdjPhase(self, species_pairs, hom_fam_list, output_directory, log, debug):
+    def dealWithAdjPhase(self, species_pairs, hom_fam_list, output_directory, log, debug, all_match):
         # For each pair of species, compare the species to find adjacencies.
-        self.adj.solveAdjacencies(species_pairs, self.gens, output_directory, log)
+        self.adj.solveAdjacencies(species_pairs, self.gens, output_directory, log, all_match)
 
         # Do the same for repeat spanning intervals
-        self.RSI.solveRSIs(species_pairs, self.gens, output_directory, log)
+        self.RSI.solveRSIs(species_pairs, self.gens, output_directory, log, all_match)
 
         # Select maximal subsets of adjacencies that are realizable.
         self.adj.selectMaxAdjacencies(hom_fam_list, output_directory, log)
@@ -414,6 +414,7 @@ class MasterScript:
     def __init__(self):
         self.io_dict = {}
         self.markers_param_dict = {}
+        self.run_param_dict = {}
 
         self.log = None
         self.debug = None
@@ -478,6 +479,8 @@ class MasterScript:
             self.markers_param_dict["filter_copy_number"] = config["filter_copy_number"]
             self.markers_param_dict["filter_by_id"]       = config["filter_by_id"]
 
+            self.run_param_dict["all_match"]            = config["all_match"]
+
             self.debug = config["debug"]
             
         except IOError:
@@ -526,7 +529,7 @@ class MasterScript:
     def adjacenciesPhase(self):
         # Genome construction
         self.genome_construction_obj.constructGenomes(self.species_pairs, self.hom_fam_list, self.log)
-        self.genome_construction_obj.dealWithAdjPhase(self.species_pairs, self.hom_fam_list, self.io_dict["output_directory"], self.log, self.debug)
+        self.genome_construction_obj.dealWithAdjPhase(self.species_pairs, self.hom_fam_list, self.io_dict["output_directory"], self.log, self.debug, self.run_param_dict["all_match"])
     #enddef
 
     def genomeConstructionPhase(self):

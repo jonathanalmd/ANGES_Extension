@@ -2,6 +2,7 @@ import genomes
 import markers
 import intervals
 import itertools
+import collections
 
 class Genome_pairs_index:
 
@@ -84,8 +85,8 @@ class Genome_pairs_index:
 #    genome1, genome2: Genome objects
 # Output:
 #    An IntervalDict of adjacencies
-def find_adjacencies( genome1, genome2 ):
-    adjs, _ = find_intervals( genome1, genome2, strip=False )
+def find_adjacencies( genome1, genome2, all_match ):
+    adjs, _ = find_intervals( genome1, genome2, all_match, strip=False)
     return adjs
 
 # Function to find the RSIs between two genomes.
@@ -93,8 +94,8 @@ def find_adjacencies( genome1, genome2 ):
 #    genome1, genome2: Genome objects
 # Output:
 #    An IntervalDict of RSIs
-def find_RSIs( genome1, genome2 ):
-    _, RSIs = find_intervals( genome1, genome2, strip=True )
+def find_RSIs( genome1, genome2, all_match):
+    _, RSIs = find_intervals( genome1, genome2, all_match, strip=True )
     return RSIs
 
 # Function to find the adjacencies and repeat spanning intervals between two
@@ -104,7 +105,7 @@ def find_RSIs( genome1, genome2 ):
 #    strip: boolean - whether to strip given genomes or not.
 # Output:
 #    adjs, RSIs: IntervalDict objects
-def find_intervals( genome1, genome2, strip ):
+def find_intervals( genome1, genome2, all_match, strip):
     # NOTE: There might be trouble with RSIs that are the delimited at front
     #       and back by the same marker.
 
@@ -130,7 +131,7 @@ def find_intervals( genome1, genome2, strip ):
                              [ chrom[i].index : chrom[i+1].index+1 ] ]
             pairs = index.query( *pair2 )
 
-            # Find all pairs in the index with a full match.
+            # Find all pairs in the index with a full match (or all match)
             matches = []
             match_ids = []
             for pair1 in pairs:
@@ -140,7 +141,8 @@ def find_intervals( genome1, genome2, strip ):
                                   [ pair1[1].index : pair1[2].index+1 ] ]
                 cmp_result, _ = compare_marker_intervals(
                     full_ids1,
-                    full_ids2,
+                    full_ids2, 
+                    all_match
                     )
                 if cmp_result:
                     matches.append( pair1 )
@@ -237,10 +239,33 @@ def strip_genome_unique( genome ):
 #     markers1, markers2: the lists of marker IDs
 # Output:
 #     tuple of boolean (true of IDs are equivalent) and orientation, for example (True, -1)
-def compare_marker_intervals( marker_ids1, marker_ids2 ):
-    if marker_ids1 == marker_ids2:
-        return ( True, 1 )
-    elif marker_ids1 == list( reversed( marker_ids2 ) ):
-        return ( True, -1 )
-    else:
-        return ( False, 0 )
+def static_vars(**kwargs):
+    def decorate(func):
+        for k in kwargs:
+            setattr(func, k, kwargs[k])
+        return func
+    return decorate
+@static_vars (counter = 0)
+
+def compare_marker_intervals( marker_ids1, marker_ids2, all_match):
+	if all_match:
+		# if set(marker_ids1) == set(marker_ids2):
+		# collections.Counter(marker_ids1) == collections.Counter(marker_ids2)
+		if sorted(marker_ids1) == sorted(marker_ids2):
+			compare_marker_intervals.counter = compare_marker_intervals.counter + 1
+			print compare_marker_intervals.counter
+			return (True, 1) # 1, -1 or 0??
+		else:
+			return (False, 0)
+	else:
+	    if marker_ids1 == marker_ids2:
+	    	compare_marker_intervals.counter = compare_marker_intervals.counter + 1
+	    	print compare_marker_intervals.counter
+	        return ( True, 1 )
+	    elif marker_ids1 == list( reversed( marker_ids2 ) ):
+	    	compare_marker_intervals.counter = compare_marker_intervals.counter + 1
+	    	print compare_marker_intervals.counter
+	        return ( True, -1 )
+	    else:
+	        return ( False, 0 )
+
