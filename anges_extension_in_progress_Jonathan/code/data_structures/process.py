@@ -43,7 +43,7 @@ class MasterMarkers:
             sys.exit()
     #enddef
 
-    def parseSpeciesPairs(self, log):
+    def parseSpeciesPairs(self, species_set, log):
         """
         Populating the species_pairs list
         """
@@ -421,7 +421,7 @@ class MasterScript:
     
         self.species_pairs = []
         self.hom_fam_list = []
-        self.species_list = []
+        self.species_set = set()
         self.overlapping_pairs_list = []
         self.genome_construction_obj = MasterGenConstruction()
     #enddef
@@ -506,7 +506,7 @@ class MasterScript:
         # Parse the hom fams file.
         self.hom_fam_list = markers_phase_obj.parseHomFamilies(self.io_dict["homologous_families"], self.log)
         # Parse the species pair file, put result in list.
-        self.species_pairs = markers_phase_obj.parseSpeciesPairs(self.species_list, self.log;)
+        self.species_pairs = markers_phase_obj.parseSpeciesPairs(self.species_set   , self.log)
         # hom_fam_list and species_pairs list are now populated
 
         # Filter by ID
@@ -569,9 +569,8 @@ class MasterScript:
     def getSpeciesList(self):
         for marker_family in self.hom_fam_list:
             for locus_index,locus in enumerate(marker_family.loci):
-                if marker_family.loci[locus_index].species not in self.species_list:
-                    self.species_list.append(marker_family.loci[locus_index].species)
-        print self.species_list
+                self.species_set.add(marker_family.loci[locus_index].species)
+        print self.species_set
 
     def getIODictionary(self):
         return self.io_dict, self.markers_param_dict
