@@ -53,17 +53,21 @@ class MasterMarkers:
         # Assume format of "<species1> <species2>", respect comments
             pair = pair.strip()
             pair = pair.split()
-            if pair[0][0] != "#" and len( pair ) == 2:
-                if pair[0] not in species_set:
-                    print("Semantic Error at line {} (file: {}): '{}'\n\tInvalid species '{}'. Not listed in the Homologous Families file\n"
-                            .format(line_number,species_tree_dir, pair[0]+' '+pair[1],pair[0]))
+            if pair[0][0] != "#":
+                if len( pair ) == 2:
+                    if pair[0] not in species_set:
+                        print("Semantic Error at line {} (file: {}): '{}'\n\tInvalid species '{}'. Not listed in the Homologous Families file\n"
+                                .format(line_number,species_tree_dir, pair[0]+' '+pair[1],pair[0]))
+                    else:
+                        species_pairs.append( pair )
+                    if pair[1] not in species_set:
+                        print("Semantic Error at line {} (file: {}): '{}'\n\tInvalid species '{}'. Not listed in the Homologous Families file\n"
+                                .format(line_number,species_tree_dir, pair[0]+' '+pair[1],pair[1]))
+                    else:
+                        species_pairs.append( pair )
                 else:
-                    species_pairs.append( pair )
-                if pair[1] not in species_set:
-                    print("Semantic Error at line {} (file: {}): '{}'\n\tInvalid species '{}'. Not listed in the Homologous Families file\n"
-                            .format(line_number,species_tree_dir, pair[0]+' '+pair[1],pair[1]))
-                else:
-                    species_pairs.append( pair )
+                    print("Syntatic Error at line {} (file: {})\n\tInvalid number of species. Each line must have only one pair of species\n"
+                                .format(line_number,species_tree_dir))
             line_number = line_number + 1
         self.pairs_file_stream.close()
         log.write( "{}  Read {} species pairs.\n"
