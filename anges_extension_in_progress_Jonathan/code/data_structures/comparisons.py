@@ -136,6 +136,7 @@ def find_intervals( genome1, genome2, all_match, strip):
             match_ids = []
             for pair1 in pairs:
                 # do we have a match between pair1 and pair2?
+                
                 full_ids1 = [ marker.id for marker in
                               genome1.chromosomes[ pair1[0].chromosome ] \
                                   [ pair1[1].index : pair1[2].index+1 ] ]
@@ -239,33 +240,11 @@ def strip_genome_unique( genome ):
 #     markers1, markers2: the lists of marker IDs
 # Output:
 #     tuple of boolean (true of IDs are equivalent) and orientation, for example (True, -1)
-def static_vars(**kwargs):
-    def decorate(func):
-        for k in kwargs:
-            setattr(func, k, kwargs[k])
-        return func
-    return decorate
-@static_vars (counter = 0)
-
 def compare_marker_intervals( marker_ids1, marker_ids2, all_match):
-	if all_match:
-		# if set(marker_ids1) == set(marker_ids2):
-		# collections.Counter(marker_ids1) == collections.Counter(marker_ids2)
-		if sorted(marker_ids1) == sorted(marker_ids2):
-			compare_marker_intervals.counter = compare_marker_intervals.counter + 1
-			print compare_marker_intervals.counter
-			return (True, 1) # 1, -1 or 0??
-		else:
-			return (False, 0)
-	else:
-	    if marker_ids1 == marker_ids2:
-	    	compare_marker_intervals.counter = compare_marker_intervals.counter + 1
-	    	print compare_marker_intervals.counter
-	        return ( True, 1 )
-	    elif marker_ids1 == list( reversed( marker_ids2 ) ):
-	    	compare_marker_intervals.counter = compare_marker_intervals.counter + 1
-	    	print compare_marker_intervals.counter
-	        return ( True, -1 )
-	    else:
-	        return ( False, 0 )
+    if marker_ids1 == marker_ids2:
+        return ( True, 1 )
+    elif marker_ids1 == list( reversed( marker_ids2 ) ):
+        return ( True, -1 )
+    else:
+        return ( False, 0 )
 
