@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# ANGES_extension_in_progress_Jonathan branch
-dealing with config file
-=======
-# ANGES_extension_in_progress_Jonathan
+# ANGES_extension_in_progress_Jonathan Master Branch
 ANGES extension 
 
 ## CURRENT TASK
