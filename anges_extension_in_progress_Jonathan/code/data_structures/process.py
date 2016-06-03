@@ -47,13 +47,23 @@ class MasterMarkers:
         """
         Populating the species_pairs list
         """
+        line_number = 1
         species_pairs = []
         for pair in self.pairs_file_stream:
         # Assume format of "<species1> <species2>", respect comments
             pair = pair.strip()
             pair = pair.split()
             if pair[0][0] != "#" and len( pair ) == 2:
-                species_pairs.append( pair )
+                print pair[0]
+                if pair[0] not in species_set:
+                    print("Semantic Error at line {}\n".format(line_number))
+                else:
+                    species_pairs.append( pair )
+                if pair[1] not in species_set:
+                    print("Semantic Error 2 at line {}\n".format(line_number))
+                else:
+                    species_pairs.append( pair )
+            line_number = line_number + 1
         self.pairs_file_stream.close()
         log.write( "{}  Read {} species pairs.\n"
                    .format(strtime(), len(species_pairs)))
@@ -505,6 +515,7 @@ class MasterScript:
         markers_phase_obj.setInputStreams(self.io_dict["species_tree"],self.io_dict["homologous_families"]) #set pairs file stream and hom fams file stream
         # Parse the hom fams file.
         self.hom_fam_list = markers_phase_obj.parseHomFamilies(self.io_dict["homologous_families"], self.log)
+        self.getSpeciesList()
         # Parse the species pair file, put result in list.
         self.species_pairs = markers_phase_obj.parseSpeciesPairs(self.species_set   , self.log)
         # hom_fam_list and species_pairs list are now populated
@@ -524,7 +535,6 @@ class MasterScript:
         # Since the markers are all oriented, double them.
         self.hom_fam_list = markers_phase_obj.doubleMarkers(self.hom_fam_list)
 
-        self.getSpeciesList()
 
         del markers_phase_obj
     #enddef
