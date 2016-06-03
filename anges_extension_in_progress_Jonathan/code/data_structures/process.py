@@ -43,7 +43,7 @@ class MasterMarkers:
             sys.exit()
     #enddef
 
-    def parseSpeciesPairs(self, species_set, log):
+    def parseSpeciesPairs(self, species_set, species_tree_dir, log):
         """
         Populating the species_pairs list
         """
@@ -54,13 +54,14 @@ class MasterMarkers:
             pair = pair.strip()
             pair = pair.split()
             if pair[0][0] != "#" and len( pair ) == 2:
-                print pair[0]
                 if pair[0] not in species_set:
-                    print("Semantic Error at line {}\n".format(line_number))
+                    print("Semantic Error at line {} (file: {}): '{}'\n\tInvalid species '{}'. Not listed in the Homologous Families file\n"
+                            .format(line_number,species_tree_dir, pair[0]+' '+pair[1],pair[0]))
                 else:
                     species_pairs.append( pair )
                 if pair[1] not in species_set:
-                    print("Semantic Error 2 at line {}\n".format(line_number))
+                    print("Semantic Error at line {} (file: {}): '{}'\n\tInvalid species '{}'. Not listed in the Homologous Families file\n"
+                            .format(line_number,species_tree_dir, pair[0]+' '+pair[1],pair[1]))
                 else:
                     species_pairs.append( pair )
             line_number = line_number + 1
@@ -517,7 +518,7 @@ class MasterScript:
         self.hom_fam_list = markers_phase_obj.parseHomFamilies(self.io_dict["homologous_families"], self.log)
         self.getSpeciesList()
         # Parse the species pair file, put result in list.
-        self.species_pairs = markers_phase_obj.parseSpeciesPairs(self.species_set   , self.log)
+        self.species_pairs = markers_phase_obj.parseSpeciesPairs(self.species_set, self.io_dict["species_tree"], self.log)
         # hom_fam_list and species_pairs list are now populated
 
         # Filter by ID
@@ -580,7 +581,6 @@ class MasterScript:
         for marker_family in self.hom_fam_list:
             for locus_index,locus in enumerate(marker_family.loci):
                 self.species_set.add(marker_family.loci[locus_index].species)
-        print self.species_set
 
     def getIODictionary(self):
         return self.io_dict, self.markers_param_dict
