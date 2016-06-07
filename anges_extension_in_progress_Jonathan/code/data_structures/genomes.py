@@ -50,6 +50,10 @@ class Marker:
         self.copy_number = copy_number
         self.index = index
 
+    def __repr__(self):
+        #Return the direct representation of Genome_pairs_index class
+        return "Marker id={} locus={} copy_number={} index={}".format(self.id, self.locus, self.copy_number, self.index)
+
 
 # Get dictionary of sorted genomes
 # Inpus:

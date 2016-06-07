@@ -12,6 +12,11 @@ class Genome_pairs_index:
         self.pairs = {}
         self.species = ''
 
+    def __repr__(self):
+        #Return the direct representation of Genome_pairs class
+        return "Genome_pairs_index {}".format(self.species)
+
+
     # Function to process a genome and get a dictionary of adjacent pairs of markers.
     # Arguments:
     #    genome: a Genome object
@@ -130,7 +135,6 @@ def find_intervals( genome1, genome2, all_match, strip):
                          genome2.chromosomes[ key ] \
                              [ chrom[i].index : chrom[i+1].index+1 ] ]
             pairs = index.query( *pair2 )
-
             # Find all pairs in the index with a full match (or all match)
             matches = []
             match_ids = []
@@ -140,6 +144,7 @@ def find_intervals( genome1, genome2, all_match, strip):
                 full_ids1 = [ marker.id for marker in
                               genome1.chromosomes[ pair1[0].chromosome ] \
                                   [ pair1[1].index : pair1[2].index+1 ] ]
+
                 cmp_result, _ = compare_marker_intervals(
                     full_ids1,
                     full_ids2, 
@@ -241,10 +246,18 @@ def strip_genome_unique( genome ):
 # Output:
 #     tuple of boolean (true of IDs are equivalent) and orientation, for example (True, -1)
 def compare_marker_intervals( marker_ids1, marker_ids2, all_match):
-    if marker_ids1 == marker_ids2:
-        return ( True, 1 )
-    elif marker_ids1 == list( reversed( marker_ids2 ) ):
-        return ( True, -1 )
+    if all_match:
+        # if set(marker_ids1) == set(marker_ids2):
+        # collections.Counter(marker_ids1) == collections.Counter(marker_ids2)
+        if sorted(marker_ids1) == sorted(marker_ids2):
+            return (True, 1) # 1, -1 or 0?? 
+        else:
+            return (False, 0)
     else:
-        return ( False, 0 )
+        if marker_ids1 == marker_ids2:
+            return ( True, 1 )
+        elif marker_ids1 == list( reversed( marker_ids2 ) ):
+            return ( True, -1 )
+        else:
+            return ( False, 0 )
 
