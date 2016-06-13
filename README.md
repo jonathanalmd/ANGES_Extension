@@ -3,11 +3,10 @@ ANGES extension
 
 ## CURRENT TASK
 #### WORKING WITH (BRANCH): 
-master branch
+ANG3S branch
 
 #### SINCE: 
-MAY 30
+JUNE 13
 
 #### GOAL:
-Deal with RSI (model 2: exact same repeated content)
-
+Merge the new anges with the old one (C1P functions)
