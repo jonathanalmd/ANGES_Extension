@@ -245,12 +245,21 @@ def strip_genome_unique( genome ):
 #     markers1, markers2: the lists of marker IDs
 # Output:
 #     tuple of boolean (true of IDs are equivalent) and orientation, for example (True, -1)
+def contains(small, big):
+    for i in xrange(len(big)-len(small)+1):
+        for j in xrange(len(small)):
+            if big[i+j] != small[j]:
+                break
+        else:
+            return i, i+len(small)
+    return False
+
 def compare_marker_intervals( marker_ids1, marker_ids2, all_match):
     if all_match:
         # if set(marker_ids1) == set(marker_ids2):
         # collections.Counter(marker_ids1) == collections.Counter(marker_ids2)
         if sorted(marker_ids1) == sorted(marker_ids2):
-            return (True, 1) # 1, -1 or 0?? 
+            return (True, 0) # 1, -1 or 0?? 
         else:
             return (False, 0)
     else:

@@ -1,0 +1,6 @@
+----> Started
+----> Copying input
+----> Creating PQR-tree: RESULTS_BURKHOLDERIA_1/CARS/BANC1_PQRTREE
+----> Making (weighted)ACS matrix C1P (heuristic): RESULTS_BURKHOLDERIA_1/WEIGHT/BANC1_WACS RESULTS_BURKHOLDERIA_1/C1P/BANC1_ACS_DISC_HEUR
+----> Creating a PQ-tree: RESULTS_BURKHOLDERIA_1/CARS/BANC1_PQTREE_HEUR
+----> Done

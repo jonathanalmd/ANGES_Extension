@@ -30,5 +30,7 @@ def main():
     # Construct ancestral genome based on realizable intervals.
     master_script_obj.genomeConstructionPhase() # TODO: SPLIT
 
+    master_script_obj.c1pPhase()
+
 
 main()
