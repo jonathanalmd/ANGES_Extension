@@ -12,7 +12,6 @@ import optimization
 import assembly
 
 
-
 import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))) + '/COMMON')
@@ -96,7 +95,7 @@ def do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, suff
     #endif
 
     if params.markers_doubled:
-        callprocess(["python", code_dir + compute_PQRtree, acs_c1p, pq_tree_doubled, params.output_ancestor])
+        callprocess(["python", code_dir + compute_PQRtree, acs_c1p, pq_tree_doubled, self.output_ancestor])
         if not quiet:
             print2("----> Halving PQ-tree columns") 
         #endif
@@ -105,6 +104,372 @@ def do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, suff
         callprocess(["python", code_dir + compute_PQRtree, acs_c1p, pq_tree, params.output_ancestor])
     #endif
 #enddef
+
+class MasterC1P:
+    def __init__(self):
+        self.c1p_parameters = ""
+        self.markers_input = ""
+        self.species_tree = ""
+        self.acs_file = ""
+        self.output_dir = ""
+        self.output_ancestor = ""
+
+        self.markers_doubled = 0
+        self.markers_unique = 0
+
+        self.c1p_circular = 0
+        self.c1p_linear = 0
+        self.acs_ra = 0
+        self.acs_correction = 0
+        self.c1p_spectral = 0
+        self.acs_weight = 0
+        self.acs_aci = 0
+        self.acs_sci = 0
+        self.acs_mci = 0
+        self.c1p_telomeres = 0
+        self.c1p_heuristic = 0
+        self.c1p_bab = 0
+        self.c1p_spectral_alpha = 0
+
+        self.markers_provided = False
+        self.species_tree_provided = False
+        self.acs_file_provided = False
+        self.acs_pairs_provided = False
+
+    def setConfigParams(self, config_file):
+        try:
+            config = {}
+            execfile(config_file, config)
+            #collect the information from config file
+            self.c1p_parameters = config["c1p_parameters"]
+
+            self.markers_input    = config["homologous_families"]
+            self.species_tree        = config["tree_file"]
+            self.acs_file         = config["acs_file"]
+            self.output_dir = config["output_c1p"]
+            self.output_ancestor = config["output_ancestor"]
+
+            self.markers_doubled = config["markers_doubled"]
+            self.markers_unique = config["markers_unique"]
+
+            self.c1p_circular = config["c1p_circular"]
+            self.c1p_linear = config["c1p_linear"]
+            self.acs_ra = config["acs_ra"]
+            self.acs_correction = config["acs_correction"]
+            self.c1p_spectral = config["c1p_spectral"]
+            self.acs_weight = config["acs_weight"]
+            self.acs_aci = config["acs_aci"]
+            self.acs_sci = config["acs_sci"]
+            self.acs_mci = config["acs_mci"]
+            self.c1p_telomeres = config["c1p_telomeres"]
+            self.c1p_heuristic = config["c1p_heuristic"]
+            self.c1p_bab = config["c1p_bab"]
+            self.c1p_spectral_alpha = config["c1p_spectral_alpha"]
+
+            self.markers_provided = config["markers_provided"]
+            self.species_tree_provided = config["species_tree_provided"]
+            self.acs_file_provided = config["acs_file_provided"]
+            self.acs_pairs_provided = config["acs_pairs_provided"]
+
+        except IOError:
+            print("{}  ERROR (master.py -> process.py) - could not open configuration file: {}\n"
+                    .format(strtime(),config_file))
+            sys.exit()
+        config.clear()
+    #enddef
+
+    def run(self):
+        parameters_file = self.c1p_parameters
+
+        params = parameters.Parameters()
+        params.from_file(parameters_file)
+        
+        code_dir = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))) + "/code/c1p_files" # directory where the code is stored
+        
+        event = threading.Event()
+        
+        working_dir = os.path.dirname(parameters_file)
+
+        # set the working directory to the directory of the parameters file
+        if working_dir and working_dir != '':
+            os.chdir(working_dir)
+        #endif
+        #endif
+
+        ## CREATING DIRECTORIES ------------------------------------------------------------------------------
+        output_prefix = self.output_ancestor + "_"         # Prefix of all filenames
+        output_dir = self.output_dir
+        output_tmp = self.output_dir # directory for intermediate files
+
+        # create output directory
+        try:
+            os.mkdir(output_dir)
+        except:
+            pass
+        #endtry
+
+        ## CREATING LOG FILE
+        output_log = output_tmp + "/" + output_prefix + "LOG"    # captures code output
+
+        log_file = open(output_log, 'w')
+            
+        print2("----> Started")
+
+        # TRACKING
+        quiet = False        # True if in quiet mode
+
+        ## CHECKING INCOMPATIBILITIES ------------------------------------------------------------------------
+
+        ## General errors
+
+        # Missing input
+        if not self.markers_provided:
+            print2("ERROR: no markers file")
+            sys.exit(-1)
+        #endif
+        if not self.species_tree_provided:
+            print2("ERROR: no species tree file")
+            sys.exit(-1)
+        #endif
+
+        # Conflicting models
+        if self.c1p_circular and self.c1p_linear:
+            print2("ERROR: chose either circular or linear C1P")
+            sys.exit(-1)
+        #endif
+
+        if (not self.markers_unique) and (self.acs_ra):
+            print2("ERROR: reliable adjacencies are not defined for repeated markers")
+            sys.exit(-1)
+        #endif
+
+        if self.acs_correction >= 2 and (not self.c1p_spectral):
+            print2("ERROR: corrected ACS with Xs require using the spectral seriation algorithm")
+            sys.exit(-1)
+        #endif    
+        #if self.acs_correction < 2 and self.c1p_sandwich:
+        #    print2("ERROR: the sandwich c1p requires using corrected ACS with X's ")
+        #    sys.exit(-1)
+        #endif    
+
+
+        ## Current limitations
+
+        if self.acs_ra and (not self.acs_sa):
+            print2("ERROR: computing reliable adjacencies require computing supported adjacencies")
+            # could be addressed by forcing self.acs_sa to be true if self.acs_ra is true
+            sys.exit(-1)
+        #endif
+
+        if self.acs_weight!=1 and not self.acs_file_provided:
+            print2("ERROR: weighting ACS by linear interpolation is mandatory currently ")
+            sys.exit(-1)
+        #endif    
+
+
+        if self.c1p_circular:
+            if self.acs_aci or self.acs_sci or self.acs_mci:
+                print2("ERROR: circular chromosomes can only be computed from adjacencies")
+                sys.exit(-1)
+                #endif
+        #endif
+
+        if self.c1p_spectral:
+            if self.markers_doubled:
+                print2("ERROR: spectral seriation can not be used with doubled markers")
+                sys.exit(-1)
+                #endif
+            if self.c1p_circular:
+                print2("ERROR: spectral seriation can not be used with circular chromosomes")
+                sys.exit(-1)
+                #endif
+            if self.c1p_telomeres:
+                print2("ERROR: spectral seriation can not be used with telomeric ACS")
+                sys.exit(-1)
+            #endif
+        #endif
+
+
+        # input_dir = output_tmp + "/INPUT"
+
+        # # create input directory
+        # try:
+        #     os.mkdir(input_dir)
+        # except:
+        #     pass
+        # #endtry
+
+        # if not quiet:
+        #     print2("----> Copying input")
+        # #endif
+
+        # copied_params = copy.copy(params)
+
+        # copied_parameters = input_dir + "/" + output_prefix + "PARAMETERS"
+        # copied_markers = input_dir + "/" + output_prefix + "MARKERS"
+        # copied_tree = input_dir + "/" + output_prefix + "SPECIES_TREE"
+        # copied_acs = input_dir + "/" + output_prefix + "ACS"
+        # copied_pairs = input_dir + "/" + output_prefix + "SPECIES_PAIRS"
+
+        # copied_self.markers_input = output_prefix + "MARKERS"
+        # copied_self.species_tree = output_prefix + "SPECIES_TREE"
+        # copied_self.output_dir = ".."
+
+        # if os.path.abspath(self.markers_input) != os.path.abspath(copied_markers):
+        #     shutil.copy(self.markers_input, copied_markers)
+        # #endif
+
+        # if os.path.abspath(self.species_tree) != os.path.abspath(copied_tree):
+        #     shutil.copy(self.species_tree, copied_tree)
+        # #endif
+
+        # if self.acs_pairs_provided:
+        #     copied_self.acs_pairs = output_prefix + "SPECIES_PAIRS"
+        #     if os.path.abspath(self.acs_pairs) != os.path.abspath(copied_pairs):
+        #         shutil.copy(self.acs_pairs, copied_pairs)
+        #     #endif
+        # #endif
+        # if self.acs_file_provided:
+        #     copied_self.acs_file = output_prefix + "ACS"
+        #     if os.path.abspath(self.acs_file) != os.path.abspath(copied_acs):
+        #         shutil.copy(self.acs_file, copied_acs)
+        #     #endif
+        # #endif
+
+        # copied_self.to_file(copied_parameters)
+
+
+
+        markers_dir = output_tmp + "/MARKERS"
+        markers_file = markers_dir + "/" + output_prefix + "MARKERS"
+
+
+        ## COMPUTING ACS ------------------------------------------------------------------------------
+        acs_dir = output_tmp + "/ACS"        # intermediate files from ACS code
+        mci = acs_dir + "/" + output_prefix + "MCI"        # maximal common intervals file
+        sci = acs_dir + "/" + output_prefix + "SCI"        # strong common intervals file
+        aci = acs_dir + "/" + output_prefix + "ACI"        # strong common intervals file
+        sa = acs_dir + "/" + output_prefix + "SA"        # supported adjacencies file
+        ra = acs_dir + "/" + output_prefix + "RA"        # reliable adjacencies file
+        acs = acs_dir + "/" + output_prefix + "ACS"        # ancestral contiguous sets file
+
+
+        weight_dir = output_tmp + "/WEIGHT"
+        weight_input=acs
+        # wacs = weight_dir + "/" + output_prefix + "WACS"    # weighted ancestral contiguous sets
+        wacs = self.acs_file
+
+        ## COMPUTING A C1P MATRIX ------------------------------------------------------------------------------
+        c1p_dir = output_tmp + "/C1P"        # intermediate files from C1P code
+        cars_dir = output_tmp + "/CARS"
+        pqr_tree = cars_dir + "/" + output_prefix + "PQRTREE"        # PQR-tree file
+        if self.markers_doubled:
+            pqr_tree_doubled = cars_dir + "/" + output_prefix + "PQRTREE_DOUBLED"
+        #endif
+        # make C1P directory
+        try:
+             os.mkdir(c1p_dir)
+        except:
+             pass
+        #endtry
+        # make CARS directory
+        try:
+             os.mkdir(cars_dir)
+        except:
+             pass
+        #endtry
+        if self.c1p_linear or self.c1p_telomeres > 0:
+            if not quiet:
+                print2("----> Creating PQR-tree: " + pqr_tree)
+            #endif
+
+            if self.markers_doubled:
+                callprocess(["python", code_dir +"/C1P/C1P_compute_PQRtree.py", wacs, pqr_tree_doubled, self.output_ancestor])
+                if not quiet:
+                    print2("----> Halving PQR-tree columns") 
+                        #endif
+                callprocess(["python", code_dir +"/C1P/C1P_halve_PQRtree.py", pqr_tree_doubled, pqr_tree])
+            else:
+                callprocess(["python", code_dir +"/C1P/C1P_compute_PQRtree.py", wacs, pqr_tree, self.output_ancestor])
+            #endif
+        elif self.c1p_circular:
+            if not quiet:
+                print2("----> Creating PQR-tree: " + pqr_tree)
+            #endif
+
+            if self.markers_doubled:
+                callprocess(["python", code_dir +"/C1P/C1P_compute_PQCRtree.py", wacs, pqr_tree_doubled, self.output_ancestor])
+                if not quiet:
+                    print2("----> Halving PQR-tree columns") 
+                        #endif
+                callprocess(["python", code_dir +"/C1P/C1P_halve_PQRtree.py", pqr_tree_doubled, pqr_tree])
+            else:
+                callprocess(["python", code_dir +"/C1P/C1P_compute_PQCRtree.py", wacs, pqr_tree, self.output_ancestor])
+            #endif
+        #endif
+
+        # heuristic
+        if self.c1p_heuristic and self.c1p_telomeres == 0:
+            if self.c1p_linear:
+                do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "HEUR", "heuristic", "/C1P/C1P_make_C1P_heuristic.py", "/C1P/C1P_compute_PQRtree.py")
+            elif self.c1p_circular:
+                do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "HEUR", "heuristic", "/C1P/C1P_make_circC1P_heuristic.py", "/C1P/C1P_compute_PQCRtree.py", True)
+            #endif
+        #endif
+
+        # branch and bound
+        if self.c1p_bab and self.c1p_telomeres == 0:
+            if self.c1p_linear:
+                do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "BAB", "branch and bound", "/C1P/C1P_make_C1P_branch_and_bound.py", "/C1P/C1P_compute_PQRtree.py")
+            elif self.c1p_circular:
+                do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "BAB", "branch and bound", "/C1P/C1P_make_circC1P_branch_and_bound.py", "/C1P/C1P_compute_PQCRtree.py", True)
+            #endif
+        #endif
+
+        # seriation
+        if self.c1p_spectral:
+            pq_tree = cars_dir + "/" + output_prefix + "PQTREE_SERIATION"    
+
+            if self.acs_correction >= 2:
+                if not quiet:
+                    print2("----> Computing PQ-tree from correlation matrix of a ternary matrix using parameter alpha") 
+                        #endif
+                callprocess(["python", code_dir +"/SERIATION/SERIATION_compute_PQtree_dotproduct_correlation_matrix.py", wacs, str(self.c1p_spectral_alpha), pq_tree, self.output_ancestor])
+            else:
+                if not quiet:
+                    print2("----> Computing PQ-tree using spectral seriation on correlation matrix") 
+                        #endif
+                callprocess(["python", code_dir +"/SERIATION/SERIATION_compute_PQtree_correlation_matrix.py", wacs, pq_tree, self.output_ancestor])
+
+                #endif
+        #endif
+
+        # telomere heuristic
+        if self.c1p_telomeres == 1:
+            do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "TEL_HEUR", "heuristic", "/C1P/C1P_make_mC1P_heuristic.py", "/C1P/C1P_compute_PQRtree.py")
+        #endif
+
+        # telomere branch and bound, add after
+        if self.c1p_telomeres == 2:
+            do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "TEL_BAB1", "branch and bound, added after", "/C1P/C1P_make_mC1P_branch_and_bound_both.py", "/C1P/C1P_compute_PQRtree.py")
+        #endif
+
+        #telomere branch and bound, add during
+        if self.c1p_telomeres == 3:
+            do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "TEL_BAB2", "branch and bound, added during", "/C1P/C1P_make_mC1P_branch_and_bound.py", "/C1P/C1P_compute_PQRtree.py")
+        #endif
+
+        if not quiet:
+             print2("----> Done")
+        #endif
+
+        log_file.close()
+
+
+
+
+
+
 
 
 
@@ -525,6 +890,7 @@ class MasterScript:
                                                                     has information regarding gens, adjacencies, ancestral genomes (including methods to manipulate these information)  
     """
     def __init__(self):
+        self.config_file_directory = ""
         self.io_dict = {}
         self.markers_param_dict = {}
         self.run_param_dict = {}
@@ -586,7 +952,7 @@ class MasterScript:
             self.io_dict["species_tree"]                  = config["species_tree"]
             self.io_dict["output_directory"]              = config["output_directory"]
             self.io_dict["c1p_parameters"]                = config["c1p_parameters"]
-            self.io_dict["wacs_file"]                     = config["wacs_directory"]
+            self.io_dict["acs_file"]                     = config["acs_file"]
 
             self.markers_param_dict["markers_doubled"]    = config["markers_doubled"]
             self.markers_param_dict["markers_unique"]     = config["markers_unique"]
@@ -613,6 +979,7 @@ class MasterScript:
         """
         # Parse arguments: 
         #sys.argv[1] = ../data/configuration_file 
+        self.config_file_directory = config_file_directory
         self.setConfigParams(config_file_directory, len_input_arguments)
         self.setOutputStreams() #set Log and Debug
         # MasterMarkers class: methods used in order to deal with input files and take information from them (populate the species_pairs list and hom_fam_list)
@@ -687,630 +1054,10 @@ class MasterScript:
 
 
 
-
-
-
-
     def c1pPhase(self):
-        parameters_file = self.io_dict["c1p_parameters"]
-
-        params = parameters.Parameters()
-        params.from_file(parameters_file)
-        
-        code_dir = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))) + "/code/c1p_files" # directory where the code is stored
-        
-        event = threading.Event()
-        
-        working_dir = os.path.dirname(parameters_file)
-
-        # set the working directory to the directory of the parameters file
-        if working_dir and working_dir != '':
-            os.chdir(working_dir)
-        #endif
-        #endif
-
-        ## CREATING DIRECTORIES ------------------------------------------------------------------------------
-        output_prefix = params.output_ancestor + "_"         # Prefix of all filenames
-        output_dir = params.output_dir
-        output_tmp = params.output_dir # directory for intermediate files
-
-        # create output directory
-        try:
-            os.mkdir(output_dir)
-        except:
-            pass
-        #endtry
-
-        ## CREATING LOG FILE
-        output_log = output_tmp + "/" + output_prefix + "LOG"    # captures code output
-
-        log_file = open(output_log, 'w')
-            
-        print2("----> Started")
-
-        # TRACKING
-        quiet = False        # True if in quiet mode
-
-        ## CHECKING INCOMPATIBILITIES ------------------------------------------------------------------------
-
-        ## General errors
-
-        # Missing input
-        if not params.markers_provided:
-            print2("ERROR: no markers file")
-            sys.exit(-1)
-        #endif
-        if not params.species_tree_provided:
-            print2("ERROR: no species tree file")
-            sys.exit(-1)
-        #endif
-
-        # Conflicting models
-        if params.c1p_circular and params.c1p_linear:
-            print2("ERROR: chose either circular or linear C1P")
-            sys.exit(-1)
-        #endif
-
-        if (not params.markers_unique) and (params.acs_ra):
-            print2("ERROR: reliable adjacencies are not defined for repeated markers")
-            sys.exit(-1)
-        #endif
-
-        if params.acs_correction >= 2 and (not params.c1p_spectral):
-            print2("ERROR: corrected ACS with Xs require using the spectral seriation algorithm")
-            sys.exit(-1)
-        #endif    
-        #if params.acs_correction < 2 and params.c1p_sandwich:
-        #    print2("ERROR: the sandwich c1p requires using corrected ACS with X's ")
-        #    sys.exit(-1)
-        #endif    
-
-
-        ## Current limitations
-
-        if params.acs_ra and (not params.acs_sa):
-            print2("ERROR: computing reliable adjacencies require computing supported adjacencies")
-            # could be addressed by forcing params.acs_sa to be true if params.acs_ra is true
-            sys.exit(-1)
-        #endif
-
-        if params.acs_weight!=1 and not params.acs_file_provided:
-            print2("ERROR: weighting ACS by linear interpolation is mandatory currently ")
-            sys.exit(-1)
-        #endif    
-
-        #if not params.markers_unique:
-        #    print2("ERROR: data with non unique markers are currently not handled")
-        #    sys.exit(-1)
-        #endif
-
-        #if params.c1p_sandwich:
-        #    print2("ERROR: C1P sandwich not handled currently")
-        #    sys.exit(-1)
-        #endif
-        #if params.c1p_spectral:
-        #    print2("ERROR: spectral seriation not handled currently")
-        #    sys.exit(-1)
-        #endif
-
-        if params.c1p_circular:
-            if params.acs_aci or params.acs_sci or params.acs_mci:
-                print2("ERROR: circular chromosomes can only be computed from adjacencies")
-                sys.exit(-1)
-                #endif
-        #endif
-
-        if params.c1p_spectral:
-            if params.markers_doubled:
-                print2("ERROR: spectral seriation can not be used with doubled markers")
-                sys.exit(-1)
-                #endif
-            if params.c1p_circular:
-                print2("ERROR: spectral seriation can not be used with circular chromosomes")
-                sys.exit(-1)
-                #endif
-            if params.c1p_telomeres:
-                print2("ERROR: spectral seriation can not be used with telomeric ACS")
-                sys.exit(-1)
-            #endif
-        #endif
-
-
-        ## TRACKING OPTIONS -----------------------------------------------------------------------
-
-        #output = sys.stdout
-
-        #if quiet:
-        #    output = open(os.devnull, 'w')
-        ##endif
-
-        ## COPYING INPUT FILES -------------------------------------------------------------------------
-        input_dir = output_tmp + "/INPUT"
-
-        # create input directory
-        try:
-            os.mkdir(input_dir)
-        except:
-            pass
-        #endtry
-
-        if not quiet:
-            print2("----> Copying input")
-        #endif
-
-        copied_params = copy.copy(params)
-
-        copied_parameters = input_dir + "/" + output_prefix + "PARAMETERS"
-        copied_markers = input_dir + "/" + output_prefix + "MARKERS"
-        copied_tree = input_dir + "/" + output_prefix + "SPECIES_TREE"
-        copied_acs = input_dir + "/" + output_prefix + "ACS"
-        copied_pairs = input_dir + "/" + output_prefix + "SPECIES_PAIRS"
-
-        copied_params.markers_input = output_prefix + "MARKERS"
-        copied_params.species_tree = output_prefix + "SPECIES_TREE"
-        copied_params.output_dir = ".."
-
-        if os.path.abspath(params.markers_input) != os.path.abspath(copied_markers):
-            shutil.copy(params.markers_input, copied_markers)
-        #endif
-
-        if os.path.abspath(params.species_tree) != os.path.abspath(copied_tree):
-            shutil.copy(params.species_tree, copied_tree)
-        #endif
-
-        if params.acs_pairs_provided:
-            copied_params.acs_pairs = output_prefix + "SPECIES_PAIRS"
-            if os.path.abspath(params.acs_pairs) != os.path.abspath(copied_pairs):
-                shutil.copy(params.acs_pairs, copied_pairs)
-            #endif
-        #endif
-        if params.acs_file_provided:
-            copied_params.acs_file = output_prefix + "ACS"
-            if os.path.abspath(params.acs_file) != os.path.abspath(copied_acs):
-                shutil.copy(params.acs_file, copied_acs)
-            #endif
-        #endif
-
-        copied_params.to_file(copied_parameters)
-
-        ## READING MARKERS ------------------------------------------------------------------------------
-
-        # markers_dir = output_tmp + "/MARKERS"
-        # #create markers directory
-        # try:
-        #     os.mkdir(markers_dir)
-        # except:
-        #     pass
-        # #endtry
-
-        # markers_file = markers_dir + "/" + output_prefix + "MARKERS"
-        # if not quiet:
-        #     print2("----> Filtering markers")
-        # #endif
-        # callprocess(["python", code_dir + "/MARKERS/MARKERS_filter_species.py", params.markers_input, params.species_tree, str(params.markers_unique), str(params.markers_universal), markers_file])
-        # if params.markers_doubled:
-        #     markers_file_doubled = markers_file + "_DOUBLED"
-        #      if not quiet:
-        #          print2("----> Doubling markers")
-        #      #endif
-        #      callprocess(["python", code_dir + "/MARKERS/MARKERS_double.py", markers_file, markers_file_doubled])
-        #     markers_file=markers_file_doubled
-        # #endif
-        # if not quiet:
-        #     print2("----> Markers: " + markers_file)
-        # #endif
-
-        markers_dir = output_tmp + "/MARKERS"
-        markers_file = markers_dir + "/" + output_prefix + "MARKERS"
-
-
-        ## COMPUTING ACS ------------------------------------------------------------------------------
-        acs_dir = output_tmp + "/ACS"        # intermediate files from ACS code
-        mci = acs_dir + "/" + output_prefix + "MCI"        # maximal common intervals file
-        sci = acs_dir + "/" + output_prefix + "SCI"        # strong common intervals file
-        aci = acs_dir + "/" + output_prefix + "ACI"        # strong common intervals file
-        sa = acs_dir + "/" + output_prefix + "SA"        # supported adjacencies file
-        ra = acs_dir + "/" + output_prefix + "RA"        # reliable adjacencies file
-        acs = acs_dir + "/" + output_prefix + "ACS"        # ancestral contiguous sets file
-
-        # # make ACS directory
-        # try:
-        #     os.mkdir(acs_dir)
-        # except:
-        #     pass
-        # #endtry
-
-        # # Clear ACS file
-        # if not quiet:
-        #     print2("----> Cleaning ACS file")
-        # #endif
-        # acsf = file(acs, 'w')
-        # acsf.close()
-
-        # # Computing species
-        # if not quiet:
-        #     print2("----> Computing species")
-        # #endif
-
-        # species=acs_dir + "/" + output_prefix + "SPECIES"
-        # if not quiet:
-        #     print2("------> All species: " + species)
-        # #endif
-        # callprocess(["python", code_dir + "/TREES/TREES_list_species.py", params.species_tree, 'ALL', species])
-
-        # # collect ingroup and outgroup species
-        # in_species = []
-        # out_species = []
-        # ingroup = False
-
-        # for line in open(species):
-        #     if line.rstrip() == '#ingroup':
-        #         ingroup = True
-                
-        #         continue
-        #     elif line.rstrip() == '#outgroup':
-        #         ingroup = False
-                
-        #         continue
-        #     #endif
-            
-        #     if ingroup:
-        #         in_species.append(line.rstrip())
-        #     else:
-        #         out_species.append(line.rstrip())
-        #     #endif
-        # #endfor
-
-        # # Computing species pairs
-        # if not quiet:
-        #     print2("----> Computing species pairs to compare")
-        # #endif
-        # if params.acs_pairs_provided:
-        #     if not quiet:
-        #         print2("------> File provided: " + params.acs_pairs)
-        #         species_pairs=params.acs_pairs
-        #     #endif
-        # else:
-        #     species_pairs=acs_dir + "/" + output_prefix + "PAIRS"
-        #     if not quiet:
-        #         print2("------> All informative pairs: " + species_pairs)
-        #     #endif
-        #     callprocess(["python", code_dir + "/TREES/TREES_list_species_pairs.py", params.species_tree, species_pairs])
-        # #endif
-
-
-        # ingroup = False
-
-        # # Computing ACS
-        # if not quiet:
-        #     print2("----> Computing ancestral contiguous sets: " + acs)
-        # #endif
-        # for line in open(species_pairs):
-        #     if line == None or line == '' or line == '\n':        continue
-        #     #endif    
-        #     sp = line.rstrip().split(' ')    
-        #     if line.rstrip() == '#ingroup':
-        #         ingroup = True
-                
-        #         continue
-        #     elif line.rstrip() == '#outgroup':
-        #         ingroup = False
-                
-        #         continue
-        #     #endif
-        #     if not quiet:
-        #         print2("------> Species: " + sp[0] + " " + sp[1])
-        #     #endif        
-            
-        #     acs_sp = acs + "_" + sp[0] + "_" + sp[1]
-                
-        #     file_list = []        # list of file to join to make the matrix
-        #     if params.acs_mci:
-        #         if not quiet:
-        #             print2("--------> Computing maximum common intervals: " + mci + "_" + sp[0] + "_" + sp[1])
-        #         #endif
-        #         if params.markers_unique == 2:
-        #             callprocess(["python", code_dir + "/ACS/ACS_compute_common_intervals_unique.py", markers_file, sp[0], sp[1], mci + "_" + sp[0] + "_" + sp[1], "MAX", str(int(params.c1p_circular)) ])
-        #         else:
-        #             callprocess(["python", code_dir + "/ACS/ACS_compute_common_intervals_nonunique.py", markers_file, sp[0], sp[1], mci + "_" + sp[0] + "_" + sp[1], "MAX", str(int(params.c1p_circular)) ])
-        #         file_list.append(mci + "_" + sp[0] + "_" + sp[1]);
-        #         #endif
-        #     #endif
-        #     if params.acs_sci:
-        #         if not quiet:
-        #             print2("--------> Computing strong common intervals: " + sci + "_" + sp[0] + "_" + sp[1])
-        #         #endif    
-        #         if params.markers_unique == 2:
-        #             callprocess(["python", code_dir + "/ACS/ACS_compute_common_intervals_unique.py", markers_file, sp[0], sp[1], sci + "_" + sp[0] + "_" + sp[1], "STRONG", str(int(params.c1p_circular)) ])
-        #         else:
-        #             callprocess(["python", code_dir + "/ACS/ACS_compute_common_intervals_nonunique.py", markers_file, sp[0], sp[1], sci + "_" + sp[0] + "_" + sp[1], "STRONG", str(int(params.c1p_circular)) ])
-        #         #endif
-        #         file_list.append(sci + "_" + sp[0] + "_" + sp[1]);
-        #     #endif
-        #     if params.acs_aci:
-        #         if not quiet:
-        #             print2("--------> Computing all common intervals: " + aci + "_" + sp[0] + "_" + sp[1])
-        #         #endif    
-        #         if params.markers_unique == 2:
-        #             callprocess(["python", code_dir + "/ACS/ACS_compute_common_intervals_unique.py", markers_file, sp[0], sp[1], aci + "_" + sp[0] + "_" + sp[1], "ALL", str(int(params.c1p_circular)) ])
-        #         else:
-        #             callprocess(["python", code_dir + "/ACS/ACS_compute_common_intervals_nonunique.py", markers_file, sp[0], sp[1], aci + "_" + sp[0] + "_" + sp[1], "ALL", str(int(params.c1p_circular)) ])
-        #         #endif
-        #          file_list.append(aci + "_" + sp[0] + "_" + sp[1]);
-        #      #endif    
-        #      if params.acs_sa:
-        #          if not quiet:
-        #              print2("--------> Computing supported adjacencies: " + sa + "_" + sp[0] + "_" + sp[1])
-        #          #endif
-        #         if params.markers_unique == 2:
-        #             callprocess(["python", code_dir + "/ACS/ACS_compute_supported_adjacencies_unique.py", markers_file, sp[0], sp[1], sa + "_" + sp[0] + "_" + sp[1], str(int(params.c1p_circular))])        
-        #         else:
-        #             callprocess(["python", code_dir + "/ACS/ACS_compute_supported_adjacencies_nonunique.py", markers_file, sp[0], sp[1], sa + "_" + sp[0] + "_" + sp[1], str(int(params.c1p_circular))])        
-        #         #endif
-        #         file_list.append(sa + "_" + sp[0] + "_" + sp[1])
-        #      #endif    
-        #      if params.acs_ra:
-        #          if ingroup:
-        #              for sp3 in out_species:
-        #                  if sp3 == sp[0] or sp3 == sp[1]:
-        #                      continue
-        #                  #endif
-                     
-        #                  if not quiet:
-        #                      print2("--------> Computing reliable adjacencies: " + ra + "_" + sp[0] + "_" + sp[1] + "_" + sp3)
-        #                  #endif
-                     
-        #                  callprocess(["python", code_dir + "/ACS/ACS_compute_reliable_adjacencies_unique.py", markers_file, sa + "_" + sp[0] + "_" + sp[1], sp[0], sp[1], sp3, ra + "_" + sp[0] + "_" + sp[1] + "_" + sp3, str(int(params.c1p_circular))])
-        #                 file_list.append(ra + "_" + sp[0] + "_" + sp[1] + "_" + sp3)
-                        
-        #                 if not quiet:
-        #                      print2("--------> Computing reliable adjacencies: " + ra + "_" + sp[1] + "_" + sp[0] + "_" + sp3)
-        #                  #endif
-                        
-        #                 callprocess(["python", code_dir + "/ACS/ACS_compute_reliable_adjacencies_unique.py", markers_file, sa + "_" + sp[0] + "_" + sp[1], sp[1], sp[0], sp3, ra + "_" + sp[1] + "_" + sp[0] + "_" + sp3, str(int(params.c1p_circular))])
-        #                 file_list.append(ra + "_" + sp[1] + "_" + sp[0] + "_" + sp3)
-        #             #endfor
-        #          else:
-        #              if sp[0] in out_species:
-        #                  for sp3 in in_species:
-        #                      if sp3 == sp[0] or sp3 == sp[1]:
-        #                          continue
-        #                      #endif
-                         
-        #                      if not quiet:
-        #                          print2("--------> Computing reliable adjacencies: " + ra + "_" + sp[0] + "_" + sp[1] + "_" + sp3)
-        #                      #endif
-                             
-        #                      callprocess(["python", code_dir + "/ACS/ACS_compute_reliable_adjacencies_unique.py", markers_file, sa + "_" + sp[0] + "_" + sp[1], sp[0], sp[1], sp3, ra + "_" + sp[0] + "_" + sp[1] + "_" + sp3, str(int(params.c1p_circular))])
-        #                     file_list.append(ra + "_" + sp[0] + "_" + sp[1] + "_" + sp3)
-        #                 #endfor
-        #             else:
-        #                  for sp3 in in_species:
-        #                      if sp3 == sp[0] or sp3 == sp[1]:
-        #                          continue
-        #                      #endif
-                         
-        #                      if not quiet:
-        #                          print2("--------> Computing reliable adjacencies: " + ra + "_" + sp[1] + "_" + sp[0] + "_" + sp3)
-        #                      #endif
-                         
-        #                     callprocess(["python", code_dir + "/ACS/ACS_compute_reliable_adjacencies_unique.py", markers_file, sa + "_" + sp[0] + "_" + sp[1], sp[1], sp[0], sp3, ra + "_" + sp[1] + "_" + sp[0] + "_" + sp3, str(int(params.c1p_circular))])
-        #                     file_list.append(ra + "_" + sp[1] + "_" + sp[0] + "_" + sp3)
-        #                 #endfor
-        #             #endif
-        #          #endif
-        #      #endif
-             
-        #      if len(file_list) == 0:
-        #          if not quiet:
-        #              print2("------> Skipping ACS computation")
-        #          #endif
-                 
-        #          break
-        #      #endif
-                
-        #     prog = ["python", code_dir + "/ACS/ACS_join_files.py", "0"]        # join files program commandline
-        #     prog.extend(file_list)
-        #     prog.append(acs_sp)
-        #     if not quiet:
-        #         print2("------> Joining ACS files: " + acs_sp)
-        #     #endif
-             
-        #      callprocess(prog)
-                  
-        #      # adding telomeres
-        #     if params.c1p_telomeres > 0:
-        #         acs_telomeres = acs_sp + "_TEL"
-        #         if not quiet:
-        #             print2("------> Adding telomeres")
-        #         #endif
-            
-        #         callprocess(["python", code_dir + "/ACS/ACS_add_telomeres.py", markers_file, sp[0], sp[1], acs_sp, acs_telomeres])
-                
-        #         acs_sp = acs_telomeres
-        #     #endif
-            
-        #     # Correcting computed ACS
-        #     if (not ingroup and params.markers_universal == 1) or (params.markers_universal == 0) and params.acs_correction > 0:
-        #         if params.acs_correction == 1:
-        #             acs_corrected = acs_sp + "_MM1"
-        #         elif params.acs_correction == 2:
-        #             acs_corrected = acs_sp + "_MMX"
-        #         elif params.acs_correction == 3:
-        #             acs_corrected = acs_sp + "_MMX1"
-        #         #endif
-                
-        #         if not quiet:
-        #             print2("------> Correcting computed ancestral contiguous sets: " + acs_sp)
-        #            #endif        
-                    
-        #         if params.acs_correction > 0:
-        #             callprocess(["python", code_dir + "/ACS/ACS_add_missing_markers.py", markers_file, sp[0], sp[1], acs_sp, str(params.acs_correction), acs_corrected])
-                
-        #             acs_sp = acs_corrected
-        #         #endif
-        #     #endif
-            
-        #      if not quiet:
-        #          print2("------> Joining ACS files: " + acs_sp + ", " + acs)
-        #      #endif    
-            
-        #     callprocess(["python", code_dir + "/ACS/ACS_join_files.py", acs, acs_sp, acs])
-        # #endfor
-
-        # # Reading provided ACS (if any)
-        # if params.acs_file_provided:
-        #      if not quiet:
-        #          print2("----> Adding provided ACS files: " + params.acs_file)
-        #      #endif
-
-        #     callprocess(["python", code_dir + "/ACS/ACS_join_files.py", acs, params.acs_file, acs])
-        # #endif
-
-        # ## WEIGHTING ACS ------------------------------------------------------------------------------
-        # weight_dir = output_tmp + "/WEIGHT"
-        # weight_input=acs
-        # wacs = weight_dir + "/" + output_prefix + "WACS"    # weighted ancestral contiguous sets
-        # # make WEIGHT directory
-        # try:
-        #     os.mkdir(weight_dir)
-        # except:
-        #     pass
-        # #endtry
-        # if params.acs_weight==1:
-        #     if not quiet:
-        #         print2("----> Weighting ACS: " + wacs)
-        #         #endif
-        #     if params.markers_doubled:
-        #         callprocess(["python", code_dir +"/WEIGHT/WEIGHT_weight_linear_interpolation.py", weight_input, params.species_tree, wacs, "d"])
-        #     else:
-        #         callprocess(["python", code_dir +"/WEIGHT/WEIGHT_weight_linear_interpolation.py", weight_input, params.species_tree, wacs])
-        #     #endif
-        # elif params.acs_weight==0:        # weight already given
-        #     wacs = acs
-        # #endif
-
-        weight_dir = output_tmp + "/WEIGHT"
-        weight_input=acs
-        # wacs = weight_dir + "/" + output_prefix + "WACS"    # weighted ancestral contiguous sets
-        wacs = self.io_dict["wacs_file"]
-
-        ## COMPUTING A C1P MATRIX ------------------------------------------------------------------------------
-        c1p_dir = output_tmp + "/C1P"        # intermediate files from C1P code
-        cars_dir = output_tmp + "/CARS"
-        pqr_tree = cars_dir + "/" + output_prefix + "PQRTREE"        # PQR-tree file
-        if params.markers_doubled:
-            pqr_tree_doubled = cars_dir + "/" + output_prefix + "PQRTREE_DOUBLED"
-        #endif
-        # make C1P directory
-        try:
-             os.mkdir(c1p_dir)
-        except:
-             pass
-        #endtry
-        # make CARS directory
-        try:
-             os.mkdir(cars_dir)
-        except:
-             pass
-        #endtry
-        if params.c1p_linear or params.c1p_telomeres > 0:
-            if not quiet:
-                print2("----> Creating PQR-tree: " + pqr_tree)
-            #endif
-
-            if params.markers_doubled:
-                callprocess(["python", code_dir +"/C1P/C1P_compute_PQRtree.py", wacs, pqr_tree_doubled, params.output_ancestor])
-                if not quiet:
-                    print2("----> Halving PQR-tree columns") 
-                        #endif
-                callprocess(["python", code_dir +"/C1P/C1P_halve_PQRtree.py", pqr_tree_doubled, pqr_tree])
-            else:
-                callprocess(["python", code_dir +"/C1P/C1P_compute_PQRtree.py", wacs, pqr_tree, params.output_ancestor])
-            #endif
-        elif params.c1p_circular:
-            if not quiet:
-                print2("----> Creating PQR-tree: " + pqr_tree)
-            #endif
-
-            if params.markers_doubled:
-                callprocess(["python", code_dir +"/C1P/C1P_compute_PQCRtree.py", wacs, pqr_tree_doubled, params.output_ancestor])
-                if not quiet:
-                    print2("----> Halving PQR-tree columns") 
-                        #endif
-                callprocess(["python", code_dir +"/C1P/C1P_halve_PQRtree.py", pqr_tree_doubled, pqr_tree])
-            else:
-                callprocess(["python", code_dir +"/C1P/C1P_compute_PQCRtree.py", wacs, pqr_tree, params.output_ancestor])
-            #endif
-        #endif
-
-        # heuristic
-        if params.c1p_heuristic and params.c1p_telomeres == 0:
-            if params.c1p_linear:
-                do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "HEUR", "heuristic", "/C1P/C1P_make_C1P_heuristic.py", "/C1P/C1P_compute_PQRtree.py")
-            elif params.c1p_circular:
-                do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "HEUR", "heuristic", "/C1P/C1P_make_circC1P_heuristic.py", "/C1P/C1P_compute_PQCRtree.py", True)
-            #endif
-        #endif
-
-        # branch and bound
-        if params.c1p_bab and params.c1p_telomeres == 0:
-            if params.c1p_linear:
-                do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "BAB", "branch and bound", "/C1P/C1P_make_C1P_branch_and_bound.py", "/C1P/C1P_compute_PQRtree.py")
-            elif params.c1p_circular:
-                do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "BAB", "branch and bound", "/C1P/C1P_make_circC1P_branch_and_bound.py", "/C1P/C1P_compute_PQCRtree.py", True)
-            #endif
-        #endif
-
-        # seriation
-        if params.c1p_spectral:
-            pq_tree = cars_dir + "/" + output_prefix + "PQTREE_SERIATION"    
-
-            if params.acs_correction >= 2:
-                if not quiet:
-                    print2("----> Computing PQ-tree from correlation matrix of a ternary matrix using parameter alpha") 
-                        #endif
-                callprocess(["python", code_dir +"/SERIATION/SERIATION_compute_PQtree_dotproduct_correlation_matrix.py", wacs, str(params.c1p_spectral_alpha), pq_tree, params.output_ancestor])
-            else:
-                if not quiet:
-                    print2("----> Computing PQ-tree using spectral seriation on correlation matrix") 
-                        #endif
-                callprocess(["python", code_dir +"/SERIATION/SERIATION_compute_PQtree_correlation_matrix.py", wacs, pq_tree, params.output_ancestor])
-
-                #endif
-        #endif
-
-        # telomere heuristic
-        if params.c1p_telomeres == 1:
-            do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "TEL_HEUR", "heuristic", "/C1P/C1P_make_mC1P_heuristic.py", "/C1P/C1P_compute_PQRtree.py")
-        #endif
-
-        # telomere branch and bound, add after
-        if params.c1p_telomeres == 2:
-            do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "TEL_BAB1", "branch and bound, added after", "/C1P/C1P_make_mC1P_branch_and_bound_both.py", "/C1P/C1P_compute_PQRtree.py")
-        #endif
-
-        #telomere branch and bound, add during
-        if params.c1p_telomeres == 3:
-            do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "TEL_BAB2", "branch and bound, added during", "/C1P/C1P_make_mC1P_branch_and_bound.py", "/C1P/C1P_compute_PQRtree.py")
-        #endif
-
-        if not quiet:
-             print2("----> Done")
-        #endif
-
-        log_file.close()
-
-
-
-
-
-
-
-
-
-
-
+        c1p_obj = MasterC1P()
+        c1p_obj.setConfigParams(self.config_file_directory)
+        c1p_obj.run()
 
 
 

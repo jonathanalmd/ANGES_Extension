@@ -17,7 +17,7 @@ tree_file SPECIES_TREE_BURKHOLDERIA_1
 # 
 # --- Output options -----------------------------------------
 #
-output_directory RESULTS_BURKHOLDERIA_1
+output_directory ../output/RESULTS_BURKHOLDERIA_C1P
 output_ancestor BANC1
 #
 # --- Markers options -----------------------------------------
