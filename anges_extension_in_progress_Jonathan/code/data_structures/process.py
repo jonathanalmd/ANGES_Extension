@@ -21,24 +21,8 @@ import parameters
 import subprocess
 import copy
 import shutil
-import threading
 import time
 
-global log_file
-
-def print2(string):    
-
-    try:
-        print string
-        log_file.write(string + '\n')
-#        sys.__stdout__.write(string)
-#        sys.__stdout__.flush()
-    except:
-        pass
-    #endtry
-
-    #endig
-#enddef
 
 def callprocess(params):
     process = subprocess.Popen(params, bufsize=0, executable=None, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=None, close_fds=False, shell=False, cwd=None, env=None, universal_newlines=False, startupinfo=None, creationflags=0)
@@ -47,13 +31,13 @@ def callprocess(params):
         s = process.stdout.read()
     
         if s and s != "":
-            print2(s)
+            print(s)
         #endif
         
         s = process.stderr.read()
     
         if s and s != "":
-            print2(s)
+            print(s)
         #endif
     
         time.sleep(.05)
@@ -62,57 +46,31 @@ def callprocess(params):
     s = process.stdout.read()
 
     if s and s != "":
-        print2(s)
+        print(s)
     #endif
     
     s = process.stderr.read()
 
     if s and s != "":
-        print2(s)
+        print(s)
     #endif
 #enddef
 
-
-def do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, suffix, message, make_C1P, compute_PQRtree, m = False):
-    acs_c1p          = c1p_dir + "/" + output_prefix + "ACS_C1P_" + suffix    # C1P matrix file
-    acs_discarded = c1p_dir + "/" + output_prefix + "ACS_DISC_" + suffix    # matrix of removed rows file
-    pq_tree = cars_dir + "/" + output_prefix + "PQTREE_" + suffix # PQ-tree file    
-    if params.markers_doubled:
-        pq_tree_doubled = cars_dir + "/" + output_prefix + "PQTREE_DOUBLED_" + suffix # PQ-tree file    
-    #endif
-    if not quiet:
-        print2("----> Making (weighted)ACS matrix C1P (" + message + "): " + wacs + " " + acs_discarded)
-    #endif
-
-    if m:
-        callprocess(["python", code_dir + make_C1P, wacs, 'max', acs_c1p, acs_discarded])
-    else:
-        callprocess(["python", code_dir + make_C1P, wacs, acs_c1p, acs_discarded])
-    #endif
-
-    if not quiet:
-        print2("----> Creating a PQ-tree: " + pq_tree)
-    #endif
-
-    if params.markers_doubled:
-        callprocess(["python", code_dir + compute_PQRtree, acs_c1p, pq_tree_doubled, self.output_ancestor])
-        if not quiet:
-            print2("----> Halving PQ-tree columns") 
-        #endif
-        callprocess(["python", code_dir + "/C1P/C1P_halve_PQRtree.py", pq_tree_doubled, pq_tree])
-    else:
-        callprocess(["python", code_dir + compute_PQRtree, acs_c1p, pq_tree, params.output_ancestor])
-    #endif
-#enddef
 
 class MasterC1P:
     def __init__(self):
-        self.c1p_parameters = ""
         self.markers_input = ""
         self.species_tree = ""
         self.acs_file = ""
         self.output_dir = ""
         self.output_ancestor = ""
+
+        self.code_dir = ""
+        self.pqr_tree_doubled = ""
+        self.c1p_dir = ""        # intermediate files from C1P code
+        self.cars_dir = ""
+        self.pqr_tree = ""
+        self.output_prefix = ""
 
         self.markers_doubled = 0
         self.markers_unique = 0
@@ -131,6 +89,8 @@ class MasterC1P:
         self.c1p_bab = 0
         self.c1p_spectral_alpha = 0
 
+        self.quiet = False
+
         self.markers_provided = False
         self.species_tree_provided = False
         self.acs_file_provided = False
@@ -141,35 +101,40 @@ class MasterC1P:
             config = {}
             execfile(config_file, config)
             #collect the information from config file
-            self.c1p_parameters = config["c1p_parameters"]
+            self.markers_input      = config["homologous_families"]
+            self.species_tree       = config["tree_file"]
+            self.acs_file           = config["acs_file"]
+            self.output_dir         = config["output_c1p"]
+            self.output_ancestor    = config["output_ancestor"]
 
-            self.markers_input    = config["homologous_families"]
-            self.species_tree        = config["tree_file"]
-            self.acs_file         = config["acs_file"]
-            self.output_dir = config["output_c1p"]
-            self.output_ancestor = config["output_ancestor"]
+            self.markers_doubled    = config["markers_doubled"]
+            self.markers_unique     = config["markers_unique"]
 
-            self.markers_doubled = config["markers_doubled"]
-            self.markers_unique = config["markers_unique"]
-
-            self.c1p_circular = config["c1p_circular"]
-            self.c1p_linear = config["c1p_linear"]
-            self.acs_ra = config["acs_ra"]
-            self.acs_correction = config["acs_correction"]
-            self.c1p_spectral = config["c1p_spectral"]
-            self.acs_weight = config["acs_weight"]
-            self.acs_aci = config["acs_aci"]
-            self.acs_sci = config["acs_sci"]
-            self.acs_mci = config["acs_mci"]
-            self.c1p_telomeres = config["c1p_telomeres"]
-            self.c1p_heuristic = config["c1p_heuristic"]
-            self.c1p_bab = config["c1p_bab"]
+            self.c1p_circular       = config["c1p_circular"]
+            self.c1p_linear         = config["c1p_linear"]
+            self.acs_ra             = config["acs_ra"]
+            self.acs_correction     = config["acs_correction"]
+            self.c1p_spectral       = config["c1p_spectral"]
+            self.acs_weight         = config["acs_weight"]
+            self.acs_aci            = config["acs_aci"]
+            self.acs_sci            = config["acs_sci"]
+            self.acs_mci            = config["acs_mci"]
+            self.c1p_telomeres      = config["c1p_telomeres"]
+            self.c1p_heuristic      = config["c1p_heuristic"]
+            self.c1p_bab            = config["c1p_bab"]
             self.c1p_spectral_alpha = config["c1p_spectral_alpha"]
 
-            self.markers_provided = config["markers_provided"]
+
+            self.output_prefix = self.output_ancestor + "_"         # Prefix of all filenames
+            self.markers_provided      = config["markers_provided"]
             self.species_tree_provided = config["species_tree_provided"]
-            self.acs_file_provided = config["acs_file_provided"]
-            self.acs_pairs_provided = config["acs_pairs_provided"]
+            self.acs_file_provided     = config["acs_file_provided"]
+            self.acs_pairs_provided    = config["acs_pairs_provided"]
+
+
+            self.c1p_dir = self.output_dir + "/C1P"        # intermediate files from C1P code
+            self.cars_dir = self.output_dir + "/CARS"
+            self.pqr_tree = self.cars_dir + "/" + self.output_prefix + "PQRTREE"        # PQR-tree file
 
         except IOError:
             print("{}  ERROR (master.py -> process.py) - could not open configuration file: {}\n"
@@ -178,77 +143,34 @@ class MasterC1P:
         config.clear()
     #enddef
 
-    def run(self):
-        parameters_file = self.c1p_parameters
-
-        params = parameters.Parameters()
-        params.from_file(parameters_file)
-        
-        code_dir = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))) + "/code/c1p_files" # directory where the code is stored
-        
-        event = threading.Event()
-        
-        working_dir = os.path.dirname(parameters_file)
-
-        # set the working directory to the directory of the parameters file
-        if working_dir and working_dir != '':
-            os.chdir(working_dir)
-        #endif
-        #endif
-
-        ## CREATING DIRECTORIES ------------------------------------------------------------------------------
-        output_prefix = self.output_ancestor + "_"         # Prefix of all filenames
-        output_dir = self.output_dir
-        output_tmp = self.output_dir # directory for intermediate files
-
-        # create output directory
-        try:
-            os.mkdir(output_dir)
-        except:
-            pass
-        #endtry
-
-        ## CREATING LOG FILE
-        output_log = output_tmp + "/" + output_prefix + "LOG"    # captures code output
-
-        log_file = open(output_log, 'w')
-            
-        print2("----> Started")
-
-        # TRACKING
-        quiet = False        # True if in quiet mode
-
-        ## CHECKING INCOMPATIBILITIES ------------------------------------------------------------------------
-
-        ## General errors
-
-        # Missing input
+    def checkErrors(self):
+          # Missing input
         if not self.markers_provided:
-            print2("ERROR: no markers file")
+            print("ERROR: no markers file")
             sys.exit(-1)
         #endif
         if not self.species_tree_provided:
-            print2("ERROR: no species tree file")
+            print("ERROR: no species tree file")
             sys.exit(-1)
         #endif
 
         # Conflicting models
         if self.c1p_circular and self.c1p_linear:
-            print2("ERROR: chose either circular or linear C1P")
+            print("ERROR: chose either circular or linear C1P")
             sys.exit(-1)
         #endif
 
         if (not self.markers_unique) and (self.acs_ra):
-            print2("ERROR: reliable adjacencies are not defined for repeated markers")
+            print("ERROR: reliable adjacencies are not defined for repeated markers")
             sys.exit(-1)
         #endif
 
         if self.acs_correction >= 2 and (not self.c1p_spectral):
-            print2("ERROR: corrected ACS with Xs require using the spectral seriation algorithm")
+            print("ERROR: corrected ACS with Xs require using the spectral seriation algorithm")
             sys.exit(-1)
         #endif    
         #if self.acs_correction < 2 and self.c1p_sandwich:
-        #    print2("ERROR: the sandwich c1p requires using corrected ACS with X's ")
+        #    print("ERROR: the sandwich c1p requires using corrected ACS with X's ")
         #    sys.exit(-1)
         #endif    
 
@@ -256,219 +178,224 @@ class MasterC1P:
         ## Current limitations
 
         if self.acs_ra and (not self.acs_sa):
-            print2("ERROR: computing reliable adjacencies require computing supported adjacencies")
+            print("ERROR: computing reliable adjacencies require computing supported adjacencies")
             # could be addressed by forcing self.acs_sa to be true if self.acs_ra is true
             sys.exit(-1)
         #endif
 
         if self.acs_weight!=1 and not self.acs_file_provided:
-            print2("ERROR: weighting ACS by linear interpolation is mandatory currently ")
+            print("ERROR: weighting ACS by linear interpolation is mandatory currently ")
             sys.exit(-1)
         #endif    
 
 
         if self.c1p_circular:
             if self.acs_aci or self.acs_sci or self.acs_mci:
-                print2("ERROR: circular chromosomes can only be computed from adjacencies")
+                print("ERROR: circular chromosomes can only be computed from adjacencies")
                 sys.exit(-1)
                 #endif
         #endif
 
         if self.c1p_spectral:
             if self.markers_doubled:
-                print2("ERROR: spectral seriation can not be used with doubled markers")
+                print("ERROR: spectral seriation can not be used with doubled markers")
                 sys.exit(-1)
                 #endif
             if self.c1p_circular:
-                print2("ERROR: spectral seriation can not be used with circular chromosomes")
+                print("ERROR: spectral seriation can not be used with circular chromosomes")
                 sys.exit(-1)
                 #endif
             if self.c1p_telomeres:
-                print2("ERROR: spectral seriation can not be used with telomeric ACS")
+                print("ERROR: spectral seriation can not be used with telomeric ACS")
                 sys.exit(-1)
             #endif
         #endif
 
 
-        # input_dir = output_tmp + "/INPUT"
+    def do_c1p(self, suffix, message, make_C1P, compute_PQRtree, m = False):
+        acs_c1p          = self.c1p_dir + "/" + self.output_prefix + "ACS_C1P_" + suffix    # C1P matrix file
+        acs_discarded = self.c1p_dir + "/" + self.output_prefix + "ACS_DISC_" + suffix    # matrix of removed rows file
+        pq_tree = self.cars_dir + "/" + self.output_prefix + "PQTREE_" + suffix # PQ-tree file    
+        if self.markers_doubled:
+            pq_tree_doubled = self.cars_dir + "/" + self.output_prefix + "PQTREE_DOUBLED_" + suffix # PQ-tree file    
+        #endif
+        if not self.quiet:
+            print("----> Making (weighted)ACS matrix C1P (" + message + "): " + self.acs_file + " " + acs_discarded)
+        #endif
 
-        # # create input directory
-        # try:
-        #     os.mkdir(input_dir)
-        # except:
-        #     pass
-        # #endtry
+        if m:
+            callprocess(["python", self.code_dir + make_C1P, self.acs_file, 'max', acs_c1p, acs_discarded])
+        else:
+            callprocess(["python", self.code_dir + make_C1P, self.acs_file, acs_c1p, acs_discarded])
+        #endif
 
-        # if not quiet:
-        #     print2("----> Copying input")
-        # #endif
+        if not self.quiet:
+            print("----> Creating a PQ-tree: " + pq_tree)
+        #endif
 
-        # copied_params = copy.copy(params)
+        if self.markers_doubled:
+            callprocess(["python", self.code_dir + compute_PQRtree, acs_c1p, pq_tree_doubled, self.output_ancestor])
+            if not self.quiet:
+                print("----> Halving PQ-tree columns") 
+            #endif
+            callprocess(["python", self.code_dir + "/C1P/C1P_halve_PQRtree.py", pq_tree_doubled, pq_tree])
+        else:
+            callprocess(["python", self.code_dir + compute_PQRtree, acs_c1p, pq_tree, self.output_ancestor])
+        #endif
+    #enddef
 
-        # copied_parameters = input_dir + "/" + output_prefix + "PARAMETERS"
-        # copied_markers = input_dir + "/" + output_prefix + "MARKERS"
-        # copied_tree = input_dir + "/" + output_prefix + "SPECIES_TREE"
-        # copied_acs = input_dir + "/" + output_prefix + "ACS"
-        # copied_pairs = input_dir + "/" + output_prefix + "SPECIES_PAIRS"
+    def computePQRtree(self):
+        if self.markers_doubled:
+            callprocess(["python", self.code_dir +"/C1P/C1P_compute_PQRtree.py", self.acs_file, self.pqr_tree_doubled, self.output_ancestor])
+            if not self.quiet:
+                print("----> Halving PQR-tree columns") 
+                    #endif
+            self.halvePQRtree()
+        else:
+            callprocess(["python", self.code_dir +"/C1P/C1P_compute_PQRtree.py", self.acs_file, self.pqr_tree, self.output_ancestor])
+        #endif
 
-        # copied_self.markers_input = output_prefix + "MARKERS"
-        # copied_self.species_tree = output_prefix + "SPECIES_TREE"
-        # copied_self.output_dir = ".."
-
-        # if os.path.abspath(self.markers_input) != os.path.abspath(copied_markers):
-        #     shutil.copy(self.markers_input, copied_markers)
-        # #endif
-
-        # if os.path.abspath(self.species_tree) != os.path.abspath(copied_tree):
-        #     shutil.copy(self.species_tree, copied_tree)
-        # #endif
-
-        # if self.acs_pairs_provided:
-        #     copied_self.acs_pairs = output_prefix + "SPECIES_PAIRS"
-        #     if os.path.abspath(self.acs_pairs) != os.path.abspath(copied_pairs):
-        #         shutil.copy(self.acs_pairs, copied_pairs)
-        #     #endif
-        # #endif
-        # if self.acs_file_provided:
-        #     copied_self.acs_file = output_prefix + "ACS"
-        #     if os.path.abspath(self.acs_file) != os.path.abspath(copied_acs):
-        #         shutil.copy(self.acs_file, copied_acs)
-        #     #endif
-        # #endif
-
-        # copied_self.to_file(copied_parameters)
+    def halvePQRtree(self):
+        callprocess(["python", self.code_dir +"/C1P/C1P_halve_PQRtree.py", self.pqr_tree_doubled, self.pqr_tree])
 
 
+    def computePQCRtree(self):
+        if self.markers_doubled:
+            callprocess(["python", self.code_dir +"/C1P/C1P_compute_PQCRtree.py", self.acs_file, self.pqr_tree_doubled, self.output_ancestor])
+            if not self.quiet:
+                print("----> Halving PQR-tree columns") 
+                    #endif
+            self.halvePQRtree()
+        else:
+            callprocess(["python", self.code_dir +"/C1P/C1P_compute_PQCRtree.py", self.acs_file, self.pqr_tree, self.output_ancestor])
+        #endif
 
-        markers_dir = output_tmp + "/MARKERS"
-        markers_file = markers_dir + "/" + output_prefix + "MARKERS"
+    def makeC1PHeuristic(self):
+        self.do_c1p("HEUR", "heuristic", "/C1P/C1P_make_C1P_heuristic.py", "/C1P/C1P_compute_PQRtree.py")
 
+
+    def makeCircC1PHeuristic(self):
+        self.do_c1p("HEUR", "heuristic", "/C1P/C1P_make_circC1P_heuristic.py", "/C1P/C1P_compute_PQCRtree.py", True)
+
+    def makeC1PBranchAndBound(self):
+        self.do_c1p("BAB", "branch and bound", "/C1P/C1P_make_C1P_branch_and_bound.py", "/C1P/C1P_compute_PQRtree.py")
+
+    def makeCircC1PBranchAndBound(self):
+        self.do_c1p("BAB", "branch and bound", "/C1P/C1P_make_circC1P_branch_and_bound.py", "/C1P/C1P_compute_PQCRtree.py", True)
+
+    def computePQtreeDotProductCorrelationMatrix(self):
+        callprocess(["python", self.code_dir +"/SERIATION/SERIATION_compute_PQtree_dotproduct_correlation_matrix.py", self.acs_file, str(self.c1p_spectral_alpha), pq_tree, self.output_ancestor])
+
+    def computePQtreeCorrelationMatrix(self):
+        callprocess(["python", self.code_dir +"/SERIATION/SERIATION_compute_PQtree_correlation_matrix.py", self.acs_file, pq_tree, self.output_ancestor])
+
+    def makeC1PSpectral(self):
+        pq_tree = self.cars_dir + "/" + self.output_prefix + "PQTREE_SERIATION"    
+
+        if self.acs_correction >= 2:
+            if not self.quiet:
+                print("----> Computing PQ-tree from correlation matrix of a ternary matrix using parameter alpha") 
+                    #endif
+            self.computePQtreeDotProductCorrelationMatrix()
+        else:
+            if not self.quiet:
+                print("----> Computing PQ-tree using spectral seriation on correlation matrix") 
+                    #endif
+            self.computePQtreeCorrelationMatrix()
+
+            #endif
+
+    def makeMC1PHeuristic(self):
+        self.do_c1p("TEL_HEUR", "heuristic", "/C1P/C1P_make_mC1P_heuristic.py", "/C1P/C1P_compute_PQRtree.py")
+
+    def makeMC1PBranchAndBoundBoth(self):
+        self.do_c1p("TEL_BAB1", "branch and bound, added after", "/C1P/C1P_make_mC1P_branch_and_bound_both.py", "/C1P/C1P_compute_PQRtree.py")
+
+    def makeMC1PBranchAndBound(self):
+        self.do_c1p("TEL_BAB2", "branch and bound, added during", "/C1P/C1P_make_mC1P_branch_and_bound.py", "/C1P/C1P_compute_PQRtree.py")
+
+    def run(self):
+        self.code_dir = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))) + "/code/c1p_files" # directory where the code is stored
+        working_dir = os.path.dirname(self.species_tree)
+
+        # set the working directory to the directory of the parameters file
+        if working_dir and working_dir != '':
+            os.chdir(working_dir)
+
+        ## CREATING DIRECTORIES ------------------------------------------------------------------------------
+        # create output directory
+        try:
+            os.mkdir(output_dir)
+        except:
+            pass
+        #endtry
+    
+        print("----> Started")
+
+        ## CHECKING INCOMPATIBILITIES ------------------------------------------------------------------------
+        ## General errors
+        self.checkErrors()
 
         ## COMPUTING ACS ------------------------------------------------------------------------------
-        acs_dir = output_tmp + "/ACS"        # intermediate files from ACS code
-        mci = acs_dir + "/" + output_prefix + "MCI"        # maximal common intervals file
-        sci = acs_dir + "/" + output_prefix + "SCI"        # strong common intervals file
-        aci = acs_dir + "/" + output_prefix + "ACI"        # strong common intervals file
-        sa = acs_dir + "/" + output_prefix + "SA"        # supported adjacencies file
-        ra = acs_dir + "/" + output_prefix + "RA"        # reliable adjacencies file
-        acs = acs_dir + "/" + output_prefix + "ACS"        # ancestral contiguous sets file
-
-
-        weight_dir = output_tmp + "/WEIGHT"
-        weight_input=acs
-        # wacs = weight_dir + "/" + output_prefix + "WACS"    # weighted ancestral contiguous sets
-        wacs = self.acs_file
 
         ## COMPUTING A C1P MATRIX ------------------------------------------------------------------------------
-        c1p_dir = output_tmp + "/C1P"        # intermediate files from C1P code
-        cars_dir = output_tmp + "/CARS"
-        pqr_tree = cars_dir + "/" + output_prefix + "PQRTREE"        # PQR-tree file
+
         if self.markers_doubled:
-            pqr_tree_doubled = cars_dir + "/" + output_prefix + "PQRTREE_DOUBLED"
-        #endif
+            self.pqr_tree_doubled = self.cars_dir + "/" + self.output_prefix + "PQRTREE_DOUBLED"
         # make C1P directory
         try:
-             os.mkdir(c1p_dir)
+            os.mkdir(self.c1p_dir)
         except:
              pass
-        #endtry
         # make CARS directory
         try:
-             os.mkdir(cars_dir)
+            os.mkdir(self.cars_dir)
         except:
-             pass
-        #endtry
+            pass
+
         if self.c1p_linear or self.c1p_telomeres > 0:
-            if not quiet:
-                print2("----> Creating PQR-tree: " + pqr_tree)
-            #endif
+            if not self.quiet:
+                print("----> Creating PQR-tree: " + self.pqr_tree)
+            self.computePQRtree()
 
-            if self.markers_doubled:
-                callprocess(["python", code_dir +"/C1P/C1P_compute_PQRtree.py", wacs, pqr_tree_doubled, self.output_ancestor])
-                if not quiet:
-                    print2("----> Halving PQR-tree columns") 
-                        #endif
-                callprocess(["python", code_dir +"/C1P/C1P_halve_PQRtree.py", pqr_tree_doubled, pqr_tree])
-            else:
-                callprocess(["python", code_dir +"/C1P/C1P_compute_PQRtree.py", wacs, pqr_tree, self.output_ancestor])
-            #endif
         elif self.c1p_circular:
-            if not quiet:
-                print2("----> Creating PQR-tree: " + pqr_tree)
-            #endif
-
-            if self.markers_doubled:
-                callprocess(["python", code_dir +"/C1P/C1P_compute_PQCRtree.py", wacs, pqr_tree_doubled, self.output_ancestor])
-                if not quiet:
-                    print2("----> Halving PQR-tree columns") 
-                        #endif
-                callprocess(["python", code_dir +"/C1P/C1P_halve_PQRtree.py", pqr_tree_doubled, pqr_tree])
-            else:
-                callprocess(["python", code_dir +"/C1P/C1P_compute_PQCRtree.py", wacs, pqr_tree, self.output_ancestor])
-            #endif
-        #endif
+            if not self.quiet:
+                print("----> Creating PQR-tree: " + self.pqr_tree)
+            self.computePQCRtree()
 
         # heuristic
         if self.c1p_heuristic and self.c1p_telomeres == 0:
             if self.c1p_linear:
-                do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "HEUR", "heuristic", "/C1P/C1P_make_C1P_heuristic.py", "/C1P/C1P_compute_PQRtree.py")
+                self.makeC1PHeuristic()
             elif self.c1p_circular:
-                do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "HEUR", "heuristic", "/C1P/C1P_make_circC1P_heuristic.py", "/C1P/C1P_compute_PQCRtree.py", True)
-            #endif
-        #endif
-
+                self.makeCircC1PHeuristic()
+            
         # branch and bound
         if self.c1p_bab and self.c1p_telomeres == 0:
             if self.c1p_linear:
-                do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "BAB", "branch and bound", "/C1P/C1P_make_C1P_branch_and_bound.py", "/C1P/C1P_compute_PQRtree.py")
+                self.makeC1PBranchAndBound()
             elif self.c1p_circular:
-                do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "BAB", "branch and bound", "/C1P/C1P_make_circC1P_branch_and_bound.py", "/C1P/C1P_compute_PQCRtree.py", True)
-            #endif
-        #endif
-
+                self.makeCircC1PBranchAndBound()
+            
         # seriation
         if self.c1p_spectral:
-            pq_tree = cars_dir + "/" + output_prefix + "PQTREE_SERIATION"    
-
-            if self.acs_correction >= 2:
-                if not quiet:
-                    print2("----> Computing PQ-tree from correlation matrix of a ternary matrix using parameter alpha") 
-                        #endif
-                callprocess(["python", code_dir +"/SERIATION/SERIATION_compute_PQtree_dotproduct_correlation_matrix.py", wacs, str(self.c1p_spectral_alpha), pq_tree, self.output_ancestor])
-            else:
-                if not quiet:
-                    print2("----> Computing PQ-tree using spectral seriation on correlation matrix") 
-                        #endif
-                callprocess(["python", code_dir +"/SERIATION/SERIATION_compute_PQtree_correlation_matrix.py", wacs, pq_tree, self.output_ancestor])
-
-                #endif
-        #endif
-
+            self.makeC1PSpectral()
+        
         # telomere heuristic
         if self.c1p_telomeres == 1:
-            do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "TEL_HEUR", "heuristic", "/C1P/C1P_make_mC1P_heuristic.py", "/C1P/C1P_compute_PQRtree.py")
-        #endif
-
+            self.makeMC1PHeuristic()
+        
         # telomere branch and bound, add after
         if self.c1p_telomeres == 2:
-            do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "TEL_BAB1", "branch and bound, added after", "/C1P/C1P_make_mC1P_branch_and_bound_both.py", "/C1P/C1P_compute_PQRtree.py")
-        #endif
-
+            self.makeMC1PBranchAndBound()
+        
         #telomere branch and bound, add during
         if self.c1p_telomeres == 3:
-            do_c1p(code_dir, params, c1p_dir, cars_dir, output_prefix, wacs, quiet, "TEL_BAB2", "branch and bound, added during", "/C1P/C1P_make_mC1P_branch_and_bound.py", "/C1P/C1P_compute_PQRtree.py")
-        #endif
-
-        if not quiet:
-             print2("----> Done")
-        #endif
-
-        log_file.close()
-
-
-
-
-
+            self.makeMC1PBranchAndBoundBoth()
+        
+        if not self.quiet:
+            print("----> Done")
+        
 
 
 
@@ -951,7 +878,6 @@ class MasterScript:
             self.io_dict["homologous_families"]           = config["homologous_families"]
             self.io_dict["species_tree"]                  = config["species_tree"]
             self.io_dict["output_directory"]              = config["output_directory"]
-            self.io_dict["c1p_parameters"]                = config["c1p_parameters"]
             self.io_dict["acs_file"]                     = config["acs_file"]
 
             self.markers_param_dict["markers_doubled"]    = config["markers_doubled"]
