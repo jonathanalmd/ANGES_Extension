@@ -18,7 +18,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))) +
 
 import parameters
 
-import subprocess
 import copy
 import shutil
 import time
@@ -27,39 +26,13 @@ import bm
 import c1p
 import pqtree
 
-
-def callprocess(params):
-    process = subprocess.Popen(params, bufsize=0, executable=None, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=None, close_fds=False, shell=False, cwd=None, env=None, universal_newlines=False, startupinfo=None, creationflags=0)
-    
-    while process.poll() == None:
-        s = process.stdout.read()
-    
-        if s and s != "":
-            print(s)
-        #endif
-        
-        s = process.stderr.read()
-    
-        if s and s != "":
-            print(s)
-        #endif
-    
-        time.sleep(.05)
-    #endif
-    
-    s = process.stdout.read()
-
-    if s and s != "":
-        print(s)
-    #endif
-    
-    s = process.stderr.read()
-
-    if s and s != "":
-        print(s)
-    #endif
-#enddef
-
+import mc1p
+import bab
+import tree
+import sort
+from babtester import *
+import math
+import string
 
 class MasterC1P:
     def __init__(self):
@@ -470,7 +443,6 @@ class MasterC1P:
                             
                 f.close()
 
-            callprocess(["python", self.code_dir + make_C1P, self.acs_file, 'max', acs_c1p, acs_discarded])
         else:
             if make_C1P == "heuristic":
                 m = bm.BinaryMatrix()       # matrix
@@ -868,10 +840,111 @@ class MasterC1P:
         #endif
 
     def computePQtreeDotProductCorrelationMatrix(self, pq_tree):
-        callprocess(["python", self.code_dir +"/SERIATION/SERIATION_compute_PQtree_dotproduct_correlation_matrix.py", self.acs_file, str(self.c1p_spectral_alpha), pq_tree, self.output_ancestor])
+        m = bm.BinaryMatrix()       # matrix
+        m.from_file(self.acs_file)
+
+        alpha=float(str(self.c1p_spectral_alpha))
+
+        # Create numpy matrix
+
+        indices={}
+        i=0
+
+        # indices is a dictionary using the column names as keys for the matrix indices.
+        for col in m.get_support():
+            indices[col]=i
+            i+=1 
+
+        # Check if there are columns that only appear as Xs.
+        for row in m:
+            try:
+                row._Xs
+            except:
+                row._Xs=[]
+            for col in row._Xs:
+                if col not in indices.keys():
+                    indices[col]=i
+                    i+=1    
+
+        A=numpy.zeros([len(indices),len(indices)])
+
+        # Compute correlation matrix
+        for col1 in m.get_support():
+            for row in m:
+                try:
+                    row._Xs
+                except:
+                    row._Xs= []
+                    if col1 in row._set:
+                        for col2 in row._set:
+                            A[indices[col1],indices[col2]]+=1
+                        if row._Xs:
+                            for col2 in row._Xs:
+                                A[indices[col1],indices[col2]]+=alpha
+                    elif row._Xs and col1 in row._Xs:
+                        for col2 in row._set:
+                            A[indices[col1],indices[col2]]+=alpha
+                        for col2 in row._Xs:
+                            A[indices[col1],indices[col2]]+=alpha**2
+                    
+        # Find PQ tree using seriation
+        T=spectral.seriation(A,indices,0)
+
+        o=open(pq_tree,'w')
+        o.write('>'+self.output_ancestor.upper()+'\n')
+        i=1
+
+        for t in T:
+            if '_P' in t.printTree().split(' ') or '_Q' in t.printTree().split(' '):
+                o.write('#CAR'+str(i)+'\n')
+            o.write(t.printTree()+'\n')
+            i+=1
+
+        o.close()
 
     def computePQtreeCorrelationMatrix(self, pq_tree):
-        callprocess(["python", self.code_dir +"/SERIATION/SERIATION_compute_PQtree_correlation_matrix.py", self.acs_file, pq_tree, self.output_ancestor])
+        m = bm.BinaryMatrix()       # matrix
+        m.from_file(self.acs_file)
+
+        # Create numpy matrix
+
+        indices={}
+        i=0
+
+        # indices is a dictionary using the column names as keys for the matrix indices.
+        for col in m.get_support():
+            indices[col]=i
+            i+=1 
+
+        M=numpy.zeros([m._height,len(indices)])
+
+        # Populate binary matrix
+        i=0
+        for row in m:
+            for col in row._set:
+                M[i,indices[col]]=1
+            i+=1
+
+        del m
+
+        # Compute correlation matrix as matrix product
+        A=numpy.dot(M.T,M)
+        # Find PQ tree using seriation
+
+        T=spectral.seriation(A,indices,0)
+
+        o=open(pq_tree,'w')
+        o.write('>'+self.output_ancestor.upper()+'\n')
+        i=1
+
+        for t in T:
+            o.write('#CAR'+str(i)+'\n')
+            o.write(t.printTree()+'\n')
+            i+=1
+
+        o.close()
+
+       
 
     def makeC1PSpectral(self):
         pq_tree = self.cars_dir + "/" + self.output_prefix + "PQTREE_SERIATION"    
