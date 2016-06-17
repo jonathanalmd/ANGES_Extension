@@ -945,6 +945,8 @@ class MasterScript:
         self.species_set = set()
         self.overlapping_pairs_list = []
         self.genome_construction_obj = MasterGenConstruction()
+
+        self.received_acs = False
     #enddef
 
     def setOutputStreams(self):
@@ -985,44 +987,48 @@ class MasterScript:
                      "of arguments.".format(strtime()))
             sys.exit()
         #endif
-        
+        config = {}
         try:
-            config = {}
             execfile(config_file, config)
-            #collect the information from config file
-            self.io_dict["homologous_families"]           = config["homologous_families"]
-            self.io_dict["species_tree"]                  = config["species_tree"]
-            self.io_dict["output_directory"]              = config["output_directory"]
-            self.io_dict["acs_file"]                     = config["acs_file"]
-
-            self.markers_param_dict["markers_doubled"]    = config["markers_doubled"]
-            self.markers_param_dict["markers_unique"]     = config["markers_unique"]
-            self.markers_param_dict["markers_universal"]  = config["markers_universal"]
-            self.markers_param_dict["markers_overlap"]    = config["markers_overlap"]
-            self.markers_param_dict["filter_copy_number"] = config["filter_copy_number"]
-            self.markers_param_dict["filter_by_id"]       = config["filter_by_id"]
-
-            self.run_param_dict["all_match"]            = config["all_match"]
-
-            self.debug = config["debug"]
-            
         except IOError:
             print("{}  ERROR (master.py -> process.py) - could not open configuration file: {}\n"
                     .format(strtime(),config_file))
             sys.exit()
+        
+        #collect the information from config file
+        self.io_dict["homologous_families"]           = config["homologous_families"]
+        self.io_dict["species_tree"]                  = config["species_tree"]
+        self.io_dict["output_directory"]              = config["output_directory"]
+        self.io_dict["acs_file"]                     = config["acs_file"]
+
+        self.markers_param_dict["markers_doubled"]    = config["markers_doubled"]
+        self.markers_param_dict["markers_unique"]     = config["markers_unique"]
+        self.markers_param_dict["markers_universal"]  = config["markers_universal"]
+        self.markers_param_dict["markers_overlap"]    = config["markers_overlap"]
+        self.markers_param_dict["filter_copy_number"] = config["filter_copy_number"]
+        self.markers_param_dict["filter_by_id"]       = config["filter_by_id"]
+
+        self.run_param_dict["all_match"]            = config["all_match"]
+
+        self.debug = config["debug"]
+
+        self.config_file_directory = config_file
+        if config["acs_file"] != "":
+            self.received_acs = True
+        
         config.clear()
+        self.setOutputStreams() #set Log and Debug
+
     #enddef
 
-    def parse_markersPhase(self, config_file_directory, len_input_arguments):
+    def receivedAcsFile(self):
+        return self.received_acs
+
+    def parse_markersPhase(self):
         """
         Deal with everything realated to input (configuration, markers and species pairs) in order to take information from these files
 
         """
-        # Parse arguments: 
-        #sys.argv[1] = ../data/configuration_file 
-        self.config_file_directory = config_file_directory
-        self.setConfigParams(config_file_directory, len_input_arguments)
-        self.setOutputStreams() #set Log and Debug
         # MasterMarkers class: methods used in order to deal with input files and take information from them (populate the species_pairs list and hom_fam_list)
         markers_phase_obj = MasterMarkers() 
         markers_phase_obj.setInputStreams(self.io_dict["species_tree"],self.io_dict["homologous_families"]) #set pairs file stream and hom fams file stream
@@ -1065,48 +1071,10 @@ class MasterScript:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def c1pPhase(self):
         c1p_obj = MasterC1P()
         c1p_obj.setConfigParams(self.config_file_directory)
         c1p_obj.run()
-
-
-
-
-
-
-
-
 
 
 

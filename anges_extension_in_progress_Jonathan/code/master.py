@@ -18,19 +18,20 @@ def main():
         genome construction phase
     """
     master_script_obj = process.MasterScript()
+    master_script_obj.setConfigParams(sys.argv[1], len(sys.argv))
+
 
     # ------------------------ PARSE_MARKERS PHASE -------------------------------
-    master_script_obj.parse_markersPhase(sys.argv[1], len(sys.argv))
-
+    if not master_script_obj.receivedAcsFile():
+        master_script_obj.parse_markersPhase()
     # -------------------- FIND ADJACENCIES PHASE -----------------------
-    # Construct genome objects, based on hom_fams and a list of all species and deal with adjacencies
-    master_script_obj.adjacenciesPhase()
+        master_script_obj.adjacenciesPhase()
+        print("teste")
 
     # -------------- ANCESTRAL GENOME CONSTRUCTION PHASE -----------------
     # Construct ancestral genome based on realizable intervals.
-    master_script_obj.genomeConstructionPhase() # TODO: SPLIT
+    master_script_obj.genomeConstructionPhase() 
 
     master_script_obj.c1pPhase()
-
 
 main()
