@@ -30,10 +30,8 @@ def main():
     # -------------- ANCESTRAL GENOME CONSTRUCTION PHASE -----------------
     # Construct ancestral genome based on realizable intervals.
     if master_script_obj.doC1PorNot():
-        print("do c1P")
         master_script_obj.c1pPhase()
     else: # do MWM
-        print("do MWM")
         master_script_obj.genomeConstructionPhase() 
 
 main()

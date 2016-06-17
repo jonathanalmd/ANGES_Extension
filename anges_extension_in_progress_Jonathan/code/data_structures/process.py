@@ -215,6 +215,7 @@ class MasterC1P:
             #endif
         #endif
 
+    # self.do_c1p("HEUR", "heuristic", "/C1P/C1P_make_C1P_heuristic.py", "/C1P/C1P_compute_PQRtree.py")
 
     def do_c1p(self, suffix, message, make_C1P, compute_PQRtree, m = False):
         acs_c1p          = self.c1p_dir + "/" + self.output_prefix + "ACS_C1P_" + suffix    # C1P matrix file
@@ -228,9 +229,490 @@ class MasterC1P:
         #endif
 
         if m:
+            if make_C1P == "heuristic":
+                m = bm.BinaryMatrix()       # matrix
+                mat_rem = bm.BinaryMatrix() # rows discarded
+                                        
+                m.from_file(self.acs_file)
+
+                rows = c1p.make_C1P(m)      # rows to remove to make C1P
+                            
+                for j in xrange(len(rows) - 1, -1, -1):
+                    mat_rem.add_row_info(m.get_row_info(rows[j]))
+                    
+                    m.remove_row(rows[j])
+                #endfor
+                            
+                f = file(acs_c1p, 'w')      # C1P matrix file
+                            
+                f.write(str(m))
+                            
+                f.close()
+
+                f = open(acs_discarded, 'w')
+
+                mat_rem.write(f.write)
+
+                f.close()
+  
+            elif make_C1P == "circ_heuristic":
+                m = bm.BinaryMatrix()
+
+                m.from_file(self.acs_file)
+
+                mat2, mat_rem = cc1p.make_circC1P(m, 'max')
+
+                f = open(self.acs_c1p, 'w')
+
+                mat2.write(f.write)
+
+                f.close()
+
+                f = open(self.acs_discarded, 'w')
+
+                mat_rem.write(f.write)
+
+                f.close()
+
+            elif make_C1P == "branch_and_bound":
+                prop = False     # True if using weights as probs
+                mat = bm.BinaryMatrix()     # matrix
+                            
+                mat.from_file(self.acs_file)
+                            
+                ms = c1p.split_matrix(mat)      # split matrices
+                matb = bm.BinaryMatrix()        # C1P matrix
+                mat_rem = bm.BinaryMatrix()     # rows removed
+                            
+                j = 1       # iterator for tracing
+                            
+                del mat
+
+                for m in ms:
+                    print str(j) + '/' + str(len(ms))
+                                
+                    j += 1
+                            
+                    # sort matrix to get heuristic as first answer
+                    m.sort()
+                            
+                    # branch and bound
+                    # optimal rows to remove to make compnonent C1P
+                    rows = bab.branch_and_bound(m, prop, BABTester(m._height))
+                        
+                    rows.sort()
+                        
+                    for i in xrange(len(rows) - 1, -1, -1):
+                        row = m.get_row_info(rows[i])       # row to remove
+                                    
+                        mat_rem.add_row_info(row)
+                            
+                        m.remove_row(rows[i])
+                    #endfor
+                    
+                    # collect usable rows into the C1P matrix
+                    for r in m._rows:
+                        matb.add_row_info(r)
+                    #endfor
+                    
+                    print ''
+                #endfor
+                    
+                f = file(acs_c1p, 'w')
+                            
+                f.write(str(matb))
+                            
+                f.close()
+
+                f = file(acs_discarded, 'w')
+                            
+                f.write(str(mat_rem))
+                            
+                f.close()
+            elif make_C1P == "circ_branch_and_bound":
+                mat = bm.BinaryMatrix()     # matrix
+            
+                mat.from_file(self.acs_file)
+
+                mode = 'max'
+
+                if mode == 'whole':
+                    matb, mat_rem = circC1P_bab(mat)
+                elif mode == 'max':
+                    maxs = c1p.make_intersect_components(mat)       # split matrices
+                    matb = bm.BinaryMatrix()        # C1P matrix
+                    mat_rem = bm.BinaryMatrix()     # rows removed
+                    
+                    j = 1       # iterator for tracing
+                                
+                    del mat
+                    
+                    for max_comp in maxs:
+                        print 'Max:' + str(j) + '/' + str(len(maxs)) + ' '
+                        
+                        j += 1
+                        
+                        circC1P_bab(max_comp, matb, mat_rem)
+                    #endfor
+                #endif
+                    
+                f = file(self.acs_c1p, 'w')
+                            
+                f.write(str(matb))
+                            
+                f.close()
+
+                f = file(self.acs_discarded, 'w')
+                            
+                f.write(str(mat_rem))
+                            
+                f.close()
+
+            elif make_C1P == "m_heuristic":
+                m = bm.BinaryMatrix()       # matrix
+                mat_rem = bm.BinaryMatrix() # rows discarded
+                                        
+                m.from_file(self.acs_file)
+                            
+                rows = mc1p.make_mC1P(m)        # rows to remove to make C1P
+                            
+                for j in xrange(len(rows) - 1, -1, -1):
+                    mat_rem.add_row_info(m.get_row_info(rows[j]))
+
+                    m.remove_row(rows[j])
+                #endfor
+                            
+                f = file(self.acs_c1p, 'w')      # C1P matrix file
+                            
+                f.write(str(m))
+                            
+                f.close()
+
+                f = open(self.acs_discarded, 'w')
+
+                mat_rem.write(f.write)
+
+                f.close()
+
+            elif make_C1P == "m_branch_and_bound":
+                prop = False
+                mat = bm.BinaryMatrix()     # matrix
+                rows_rem = []       # rows removed
+
+                mat.from_file(self.acs_file)
+
+                ms = c1p.make_intersect_components(mat)     # intersect components
+                matb = bm.BinaryMatrix()        # mC1P matrix
+                mat_rem = bm.BinaryMatrix()     # rows removed
+                            
+                j = 1       # iterator for tracing
+
+                for m in ms:
+                    print str(j) + '/' + str(len(ms)) + ' ',
+                    sys.stdout.flush()
+                                
+                    j += 1
+                    
+                    # sort matrix to get heuristic as first answer
+                    m.sort()
+                    
+                    # branch and bound
+                    # optimal rows to remove to make compnonent mC1P
+                    rows = bab.branch_and_bound(m, prop, MC1PTester(m))
+                        
+                    rows.sort()
+
+                    for i in xrange(len(rows) - 1, -1, -1):
+                        row = m.get_row_info(rows[i])       # row to remove
+                                    
+                        mat_rem.add_row_info(row)
+                            
+                        m.remove_row(rows[i])
+                    #endfor
+                    
+                    # collect usable rows into the C1P matrix
+                    for r in m._rows:
+                        matb.add_row_info(r)
+                    #endfor
+                    
+                    print ''
+                #endfor
+
+                f = file(acs_c1p, 'w')
+
+                f.write(str(matb))
+
+                f.close()
+
+                f = file(acs_discarded, 'w')
+                            
+                f.write(str(mat_rem))
+                            
+                f.close()
+
+            elif make_C1P == "m_branch_and_bound_both":
+                prop = False     # True if using weights as probs
+                mat = bm.BinaryMatrix()     # matrix
+
+                mat.from_file(self.acs_file)
+
+                matb, mat_rem = C1P_and_mC1P_bab(mat)
+
+                f = file(acs_c1p, 'w')
+
+                f.write(str(matb))
+
+                f.close()
+
+                f = file(acs_discarded, 'w')
+                            
+                f.write(str(mat_rem))
+                            
+                f.close()
+
             callprocess(["python", self.code_dir + make_C1P, self.acs_file, 'max', acs_c1p, acs_discarded])
         else:
-            callprocess(["python", self.code_dir + make_C1P, self.acs_file, acs_c1p, acs_discarded])
+            if make_C1P == "heuristic":
+                m = bm.BinaryMatrix()       # matrix
+                mat_rem = bm.BinaryMatrix() # rows discarded
+                                        
+                m.from_file(self.acs_file)
+
+                rows = c1p.make_C1P(m)      # rows to remove to make C1P
+                            
+                for j in xrange(len(rows) - 1, -1, -1):
+                    mat_rem.add_row_info(m.get_row_info(rows[j]))
+                    
+                    m.remove_row(rows[j])
+                #endfor
+                            
+                f = file(acs_c1p, 'w')      # C1P matrix file
+                            
+                f.write(str(m))
+                            
+                f.close()
+
+                f = open(acs_discarded, 'w')
+
+                mat_rem.write(f.write)
+
+                f.close()
+  
+            elif make_C1P == "circ_heuristic":
+                m = bm.BinaryMatrix()
+
+                m.from_file(self.acs_file)
+
+                mat2, mat_rem = cc1p.make_circC1P(m, 'max')
+
+                f = open(self.acs_c1p, 'w')
+
+                mat2.write(f.write)
+
+                f.close()
+
+                f = open(self.acs_discarded, 'w')
+
+                mat_rem.write(f.write)
+
+                f.close()
+
+            elif make_C1P == "branch_and_bound":
+                prop = False     # True if using weights as probs
+                mat = bm.BinaryMatrix()     # matrix
+                            
+                mat.from_file(self.acs_file)
+                            
+                ms = c1p.split_matrix(mat)      # split matrices
+                matb = bm.BinaryMatrix()        # C1P matrix
+                mat_rem = bm.BinaryMatrix()     # rows removed
+                            
+                j = 1       # iterator for tracing
+                            
+                del mat
+
+                for m in ms:
+                    print str(j) + '/' + str(len(ms))
+                                
+                    j += 1
+                            
+                    # sort matrix to get heuristic as first answer
+                    m.sort()
+                            
+                    # branch and bound
+                    # optimal rows to remove to make compnonent C1P
+                    rows = bab.branch_and_bound(m, prop, BABTester(m._height))
+                        
+                    rows.sort()
+                        
+                    for i in xrange(len(rows) - 1, -1, -1):
+                        row = m.get_row_info(rows[i])       # row to remove
+                                    
+                        mat_rem.add_row_info(row)
+                            
+                        m.remove_row(rows[i])
+                    #endfor
+                    
+                    # collect usable rows into the C1P matrix
+                    for r in m._rows:
+                        matb.add_row_info(r)
+                    #endfor
+                    
+                    print ''
+                #endfor
+                    
+                f = file(acs_c1p, 'w')
+                            
+                f.write(str(matb))
+                            
+                f.close()
+
+                f = file(acs_discarded, 'w')
+                            
+                f.write(str(mat_rem))
+                            
+                f.close()
+            elif make_C1P == "circ_branch_and_bound":
+                mat = bm.BinaryMatrix()     # matrix
+            
+                mat.from_file(self.acs_file)
+
+                mode = 'whole'
+
+                if mode == 'whole':
+                    matb, mat_rem = circC1P_bab(mat)
+                elif mode == 'max':
+                    maxs = c1p.make_intersect_components(mat)       # split matrices
+                    matb = bm.BinaryMatrix()        # C1P matrix
+                    mat_rem = bm.BinaryMatrix()     # rows removed
+                    
+                    j = 1       # iterator for tracing
+                                
+                    del mat
+                    
+                    for max_comp in maxs:
+                        print 'Max:' + str(j) + '/' + str(len(maxs)) + ' '
+                        
+                        j += 1
+                        
+                        circC1P_bab(max_comp, matb, mat_rem)
+                    #endfor
+                #endif
+                    
+                f = file(self.acs_c1p, 'w')
+                            
+                f.write(str(matb))
+                            
+                f.close()
+
+                f = file(self.acs_discarded, 'w')
+                            
+                f.write(str(mat_rem))
+                            
+                f.close()
+
+            elif make_C1P == "m_heuristic":
+                m = bm.BinaryMatrix()       # matrix
+                mat_rem = bm.BinaryMatrix() # rows discarded
+                                        
+                m.from_file(self.acs_file)
+                            
+                rows = mc1p.make_mC1P(m)        # rows to remove to make C1P
+                            
+                for j in xrange(len(rows) - 1, -1, -1):
+                    mat_rem.add_row_info(m.get_row_info(rows[j]))
+
+                    m.remove_row(rows[j])
+                #endfor
+                            
+                f = file(self.acs_c1p, 'w')      # C1P matrix file
+                            
+                f.write(str(m))
+                            
+                f.close()
+
+                f = open(self.acs_discarded, 'w')
+
+                mat_rem.write(f.write)
+
+                f.close()
+
+            elif make_C1P == "m_branch_and_bound":
+                prop = False
+                mat = bm.BinaryMatrix()     # matrix
+                rows_rem = []       # rows removed
+
+                mat.from_file(self.acs_file)
+
+                ms = c1p.make_intersect_components(mat)     # intersect components
+                matb = bm.BinaryMatrix()        # mC1P matrix
+                mat_rem = bm.BinaryMatrix()     # rows removed
+                            
+                j = 1       # iterator for tracing
+
+                for m in ms:
+                    print str(j) + '/' + str(len(ms)) + ' ',
+                    sys.stdout.flush()
+                                
+                    j += 1
+                    
+                    # sort matrix to get heuristic as first answer
+                    m.sort()
+                    
+                    # branch and bound
+                    # optimal rows to remove to make compnonent mC1P
+                    rows = bab.branch_and_bound(m, prop, MC1PTester(m))
+                        
+                    rows.sort()
+
+                    for i in xrange(len(rows) - 1, -1, -1):
+                        row = m.get_row_info(rows[i])       # row to remove
+                                    
+                        mat_rem.add_row_info(row)
+                            
+                        m.remove_row(rows[i])
+                    #endfor
+                    
+                    # collect usable rows into the C1P matrix
+                    for r in m._rows:
+                        matb.add_row_info(r)
+                    #endfor
+                    
+                    print ''
+                #endfor
+
+                f = file(acs_c1p, 'w')
+
+                f.write(str(matb))
+
+                f.close()
+
+                f = file(acs_discarded, 'w')
+                            
+                f.write(str(mat_rem))
+                            
+                f.close()
+
+            elif make_C1P == "m_branch_and_bound_both":
+                prop = False     # True if using weights as probs
+                mat = bm.BinaryMatrix()     # matrix
+
+                mat.from_file(self.acs_file)
+
+                matb, mat_rem = C1P_and_mC1P_bab(mat)
+
+                f = file(acs_c1p, 'w')
+
+                f.write(str(matb))
+
+                f.close()
+
+                f = file(acs_discarded, 'w')
+                            
+                f.write(str(mat_rem))
+                            
+                f.close()
+
         #endif
 
         if not self.quiet:
@@ -238,13 +720,13 @@ class MasterC1P:
         #endif
 
         if self.markers_doubled:
-            callprocess(["python", self.code_dir + compute_PQRtree, acs_c1p, pq_tree_doubled, self.output_ancestor])
+            self.computePQRtree()
             if not self.quiet:
                 print("----> Halving PQ-tree columns") 
             #endif
-            callprocess(["python", self.code_dir + "/C1P/C1P_halve_PQRtree.py", pq_tree_doubled, pq_tree])
+            self.halvePQRtree(pq_tree_doubled, pq_tree)
         else:
-            callprocess(["python", self.code_dir + compute_PQRtree, acs_c1p, pq_tree, self.output_ancestor])
+            self.computePQRtree()
         #endif
     #enddef
 
@@ -253,7 +735,7 @@ class MasterC1P:
             m = bm.BinaryMatrix()       # matrix
             m.from_file(self.acs_file)
                         
-            f = file(pqr_tree_doubled, 'w')      # PQR-tree file
+            f = file(self.pqr_tree_doubled, 'w')      # PQR-tree file
 
             f.write(">" + self.output_ancestor + "\n")
             pqtree.make_PQR_tree(m).write(f.write)
@@ -267,7 +749,7 @@ class MasterC1P:
             m = bm.BinaryMatrix()       # matrix
             m.from_file(self.acs_file)
                         
-            f = file(pqr_tree_doubled, 'w')      # PQR-tree file
+            f = file(self.pqr_tree, 'w')      # PQR-tree file
 
             f.write(">" + self.output_ancestor + "\n")
             pqtree.make_PQR_tree(m).write(f.write)
@@ -385,19 +867,6 @@ class MasterC1P:
             f.close()
         #endif
 
-    def makeC1PHeuristic(self):
-        self.do_c1p("HEUR", "heuristic", "/C1P/C1P_make_C1P_heuristic.py", "/C1P/C1P_compute_PQRtree.py")
-
-
-    def makeCircC1PHeuristic(self):
-        self.do_c1p("HEUR", "heuristic", "/C1P/C1P_make_circC1P_heuristic.py", "/C1P/C1P_compute_PQCRtree.py", True)
-
-    def makeC1PBranchAndBound(self):
-        self.do_c1p("BAB", "branch and bound", "/C1P/C1P_make_C1P_branch_and_bound.py", "/C1P/C1P_compute_PQRtree.py")
-
-    def makeCircC1PBranchAndBound(self):
-        self.do_c1p("BAB", "branch and bound", "/C1P/C1P_make_circC1P_branch_and_bound.py", "/C1P/C1P_compute_PQCRtree.py", True)
-
     def computePQtreeDotProductCorrelationMatrix(self, pq_tree):
         callprocess(["python", self.code_dir +"/SERIATION/SERIATION_compute_PQtree_dotproduct_correlation_matrix.py", self.acs_file, str(self.c1p_spectral_alpha), pq_tree, self.output_ancestor])
 
@@ -419,6 +888,24 @@ class MasterC1P:
             self.computePQtreeCorrelationMatrix(pq_tree)
 
             #endif
+
+
+
+    #weight
+    def makeC1PHeuristic(self):
+        self.do_c1p("HEUR", "heuristic", "/C1P/C1P_make_C1P_heuristic.py", "/C1P/C1P_compute_PQRtree.py")
+
+
+    def makeCircC1PHeuristic(self):
+        self.do_c1p("HEUR", "heuristic", "/C1P/C1P_make_circC1P_heuristic.py", "/C1P/C1P_compute_PQCRtree.py", True)
+
+    def makeC1PBranchAndBound(self):
+        self.do_c1p("BAB", "branch and bound", "/C1P/C1P_make_C1P_branch_and_bound.py", "/C1P/C1P_compute_PQRtree.py")
+
+    def makeCircC1PBranchAndBound(self):
+        self.do_c1p("BAB", "branch and bound", "/C1P/C1P_make_circC1P_branch_and_bound.py", "/C1P/C1P_compute_PQCRtree.py", True)
+
+
 
     def makeMC1PHeuristic(self):
         self.do_c1p("TEL_HEUR", "heuristic", "/C1P/C1P_make_mC1P_heuristic.py", "/C1P/C1P_compute_PQRtree.py")
