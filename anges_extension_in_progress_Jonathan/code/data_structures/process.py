@@ -994,7 +994,7 @@ class MasterC1P:
         self.m.from_file(self.acs_file)
 
     def run(self):
-        self.m.bmFromACSFile()
+        self.bmFromACSFile()
         self.code_dir = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))) + "/code/c1p_files" # directory where the code is stored
         working_dir = os.path.dirname(self.species_tree)
 
