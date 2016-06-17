@@ -29,7 +29,7 @@ def main():
 
     # -------------- ANCESTRAL GENOME CONSTRUCTION PHASE -----------------
     # Construct ancestral genome based on realizable intervals.
-    if not master_script_obj.doC1PorNot():
+    if master_script_obj.doC1PorNot():
         master_script_obj.c1pPhase()
     else: # do MWM
         master_script_obj.genomeConstructionPhase() 
