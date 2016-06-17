@@ -68,6 +68,8 @@ class MasterC1P:
 
         self.quiet = False
 
+        self.m = bm.BinaryMatrix()
+
         self.markers_provided = False
         self.species_tree_provided = False
         self.acs_file_provided = False
@@ -203,17 +205,17 @@ class MasterC1P:
 
         if m:
             if make_C1P == "heuristic":
-                m = bm.BinaryMatrix()       # matrix
+                #m = bm.BinaryMatrix()       # matrix
                 mat_rem = bm.BinaryMatrix() # rows discarded
                                         
-                m.from_file(self.acs_file)
+                #m.from_file(self.acs_file)
 
                 rows = c1p.make_C1P(m)      # rows to remove to make C1P
                             
                 for j in xrange(len(rows) - 1, -1, -1):
                     mat_rem.add_row_info(m.get_row_info(rows[j]))
                     
-                    m.remove_row(rows[j])
+                    self.m.remove_row(rows[j])
                 #endfor
                             
                 f = file(acs_c1p, 'w')      # C1P matrix file
@@ -229,9 +231,9 @@ class MasterC1P:
                 f.close()
   
             elif make_C1P == "circ_heuristic":
-                m = bm.BinaryMatrix()
+                #m = bm.BinaryMatrix()
 
-                m.from_file(self.acs_file)
+                #m.from_file(self.acs_file)
 
                 mat2, mat_rem = cc1p.make_circC1P(m, 'max')
 
@@ -249,9 +251,9 @@ class MasterC1P:
 
             elif make_C1P == "branch_and_bound":
                 prop = False     # True if using weights as probs
-                mat = bm.BinaryMatrix()     # matrix
+                #mat = bm.BinaryMatrix()     # matrix
                             
-                mat.from_file(self.acs_file)
+                #m.from_file(self.acs_file)
                             
                 ms = c1p.split_matrix(mat)      # split matrices
                 matb = bm.BinaryMatrix()        # C1P matrix
@@ -267,7 +269,7 @@ class MasterC1P:
                     j += 1
                             
                     # sort matrix to get heuristic as first answer
-                    m.sort()
+                    self.m.sort()
                             
                     # branch and bound
                     # optimal rows to remove to make compnonent C1P
@@ -276,15 +278,15 @@ class MasterC1P:
                     rows.sort()
                         
                     for i in xrange(len(rows) - 1, -1, -1):
-                        row = m.get_row_info(rows[i])       # row to remove
+                        row = self.m.get_row_info(rows[i])       # row to remove
                                     
                         mat_rem.add_row_info(row)
                             
-                        m.remove_row(rows[i])
+                        self.m.remove_row(rows[i])
                     #endfor
                     
                     # collect usable rows into the C1P matrix
-                    for r in m._rows:
+                    for r in self.m._rows:
                         matb.add_row_info(r)
                     #endfor
                     
@@ -303,9 +305,9 @@ class MasterC1P:
                             
                 f.close()
             elif make_C1P == "circ_branch_and_bound":
-                mat = bm.BinaryMatrix()     # matrix
+                #mat = bm.BinaryMatrix()     # matrix
             
-                mat.from_file(self.acs_file)
+                #mat.from_file(self.acs_file)
 
                 mode = 'max'
 
@@ -318,7 +320,7 @@ class MasterC1P:
                     
                     j = 1       # iterator for tracing
                                 
-                    del mat
+                    #del mat
                     
                     for max_comp in maxs:
                         print 'Max:' + str(j) + '/' + str(len(maxs)) + ' '
@@ -342,17 +344,17 @@ class MasterC1P:
                 f.close()
 
             elif make_C1P == "m_heuristic":
-                m = bm.BinaryMatrix()       # matrix
+                #m = bm.BinaryMatrix()       # matrix
                 mat_rem = bm.BinaryMatrix() # rows discarded
                                         
-                m.from_file(self.acs_file)
+                #m.from_file(self.acs_file)
                             
                 rows = mc1p.make_mC1P(m)        # rows to remove to make C1P
                             
                 for j in xrange(len(rows) - 1, -1, -1):
-                    mat_rem.add_row_info(m.get_row_info(rows[j]))
+                    mat_rem.add_row_info(self.m.get_row_info(rows[j]))
 
-                    m.remove_row(rows[j])
+                    self.m.remove_row(rows[j])
                 #endfor
                             
                 f = file(self.acs_c1p, 'w')      # C1P matrix file
@@ -369,7 +371,7 @@ class MasterC1P:
 
             elif make_C1P == "m_branch_and_bound":
                 prop = False
-                mat = bm.BinaryMatrix()     # matrix
+                #mat = bm.BinaryMatrix()     # matrix
                 rows_rem = []       # rows removed
 
                 mat.from_file(self.acs_file)
@@ -387,24 +389,24 @@ class MasterC1P:
                     j += 1
                     
                     # sort matrix to get heuristic as first answer
-                    m.sort()
+                    self.m.sort()
                     
                     # branch and bound
                     # optimal rows to remove to make compnonent mC1P
-                    rows = bab.branch_and_bound(m, prop, MC1PTester(m))
+                    rows = bab.branch_and_bound(self.m, prop, MC1PTester(self.m))
                         
                     rows.sort()
 
                     for i in xrange(len(rows) - 1, -1, -1):
-                        row = m.get_row_info(rows[i])       # row to remove
+                        row = self.m.get_row_info(rows[i])       # row to remove
                                     
                         mat_rem.add_row_info(row)
                             
-                        m.remove_row(rows[i])
+                        self.m.remove_row(rows[i])
                     #endfor
                     
                     # collect usable rows into the C1P matrix
-                    for r in m._rows:
+                    for r in self.m._rows:
                         matb.add_row_info(r)
                     #endfor
                     
@@ -445,17 +447,17 @@ class MasterC1P:
 
         else:
             if make_C1P == "heuristic":
-                m = bm.BinaryMatrix()       # matrix
+                #m = bm.BinaryMatrix()       # matrix
                 mat_rem = bm.BinaryMatrix() # rows discarded
                                         
-                m.from_file(self.acs_file)
+                #m.from_file(self.acs_file)
 
                 rows = c1p.make_C1P(m)      # rows to remove to make C1P
                             
                 for j in xrange(len(rows) - 1, -1, -1):
                     mat_rem.add_row_info(m.get_row_info(rows[j]))
                     
-                    m.remove_row(rows[j])
+                    self.m.remove_row(rows[j])
                 #endfor
                             
                 f = file(acs_c1p, 'w')      # C1P matrix file
@@ -471,9 +473,9 @@ class MasterC1P:
                 f.close()
   
             elif make_C1P == "circ_heuristic":
-                m = bm.BinaryMatrix()
+                #m = bm.BinaryMatrix()
 
-                m.from_file(self.acs_file)
+                #m.from_file(self.acs_file)
 
                 mat2, mat_rem = cc1p.make_circC1P(m, 'max')
 
@@ -509,24 +511,24 @@ class MasterC1P:
                     j += 1
                             
                     # sort matrix to get heuristic as first answer
-                    m.sort()
+                    self.m.sort()
                             
                     # branch and bound
                     # optimal rows to remove to make compnonent C1P
-                    rows = bab.branch_and_bound(m, prop, BABTester(m._height))
+                    rows = bab.branch_and_bound(self.m, prop, BABTester(self.m._height))
                         
                     rows.sort()
                         
                     for i in xrange(len(rows) - 1, -1, -1):
-                        row = m.get_row_info(rows[i])       # row to remove
+                        row = self.m.get_row_info(rows[i])       # row to remove
                                     
                         mat_rem.add_row_info(row)
                             
-                        m.remove_row(rows[i])
+                        self.m.remove_row(rows[i])
                     #endfor
                     
                     # collect usable rows into the C1P matrix
-                    for r in m._rows:
+                    for r in self.m._rows:
                         matb.add_row_info(r)
                     #endfor
                     
@@ -584,17 +586,17 @@ class MasterC1P:
                 f.close()
 
             elif make_C1P == "m_heuristic":
-                m = bm.BinaryMatrix()       # matrix
+                #m = bm.BinaryMatrix()       # matrix
                 mat_rem = bm.BinaryMatrix() # rows discarded
                                         
-                m.from_file(self.acs_file)
+                #m.from_file(self.acs_file)
                             
                 rows = mc1p.make_mC1P(m)        # rows to remove to make C1P
                             
                 for j in xrange(len(rows) - 1, -1, -1):
                     mat_rem.add_row_info(m.get_row_info(rows[j]))
 
-                    m.remove_row(rows[j])
+                    self.m.remove_row(rows[j])
                 #endfor
                             
                 f = file(self.acs_c1p, 'w')      # C1P matrix file
@@ -629,7 +631,7 @@ class MasterC1P:
                     j += 1
                     
                     # sort matrix to get heuristic as first answer
-                    m.sort()
+                    self.m.sort()
                     
                     # branch and bound
                     # optimal rows to remove to make compnonent mC1P
@@ -638,15 +640,15 @@ class MasterC1P:
                     rows.sort()
 
                     for i in xrange(len(rows) - 1, -1, -1):
-                        row = m.get_row_info(rows[i])       # row to remove
+                        row = self.m.get_row_info(rows[i])       # row to remove
                                     
                         mat_rem.add_row_info(row)
                             
-                        m.remove_row(rows[i])
+                        self.m.remove_row(rows[i])
                     #endfor
                     
                     # collect usable rows into the C1P matrix
-                    for r in m._rows:
+                    for r in self.m._rows:
                         matb.add_row_info(r)
                     #endfor
                     
@@ -667,11 +669,9 @@ class MasterC1P:
 
             elif make_C1P == "m_branch_and_bound_both":
                 prop = False     # True if using weights as probs
-                mat = bm.BinaryMatrix()     # matrix
 
-                mat.from_file(self.acs_file)
 
-                matb, mat_rem = C1P_and_mC1P_bab(mat)
+                matb, mat_rem = C1P_and_mC1P_bab(self.m)
 
                 f = file(acs_c1p, 'w')
 
@@ -704,8 +704,8 @@ class MasterC1P:
 
     def computePQRtree(self):
         if self.markers_doubled:
-            m = bm.BinaryMatrix()       # matrix
-            m.from_file(self.acs_file)
+            #m = bm.BinaryMatrix()       # matrix
+            #m.from_file(self.acs_file)
                         
             f = file(self.pqr_tree_doubled, 'w')      # PQR-tree file
 
@@ -718,8 +718,8 @@ class MasterC1P:
                     #endif
             self.halvePQRtree(self.pqr_tree_doubled, self.pqr_tree)
         else:
-            m = bm.BinaryMatrix()       # matrix
-            m.from_file(self.acs_file)
+            #m = bm.BinaryMatrix()       # matrix
+            #m.from_file(self.acs_file)
                         
             f = file(self.pqr_tree, 'w')      # PQR-tree file
 
@@ -812,8 +812,8 @@ class MasterC1P:
 
     def computePQCRtree(self):
         if self.markers_doubled:
-            m = bm.BinaryMatrix()       # matrix
-            m.from_file(self.acs_file)
+            #m = bm.BinaryMatrix()       # matrix
+            #m.from_file(self.acs_file)
                         
             f = file(self.pqr_tree_doubled, 'w')      # PQCR-tree file
 
@@ -827,8 +827,8 @@ class MasterC1P:
             self.halvePQRtree(self.pqr_tree_doubled, self.pq_tree)
 
         else:
-            m = bm.BinaryMatrix()       # matrix
-            m.from_file(self.acs_file)
+            #m = bm.BinaryMatrix()       # matrix
+            #m.from_file(self.acs_file)
                         
             f = file(self.pqr_tree, 'w')      # PQCR-tree file
 
@@ -840,8 +840,8 @@ class MasterC1P:
         #endif
 
     def computePQtreeDotProductCorrelationMatrix(self, pq_tree):
-        m = bm.BinaryMatrix()       # matrix
-        m.from_file(self.acs_file)
+        #m = bm.BinaryMatrix()       # matrix
+        #m.from_file(self.acs_file)
 
         alpha=float(str(self.c1p_spectral_alpha))
 
@@ -851,7 +851,7 @@ class MasterC1P:
         i=0
 
         # indices is a dictionary using the column names as keys for the matrix indices.
-        for col in m.get_support():
+        for col in self.m.get_support():
             indices[col]=i
             i+=1 
 
@@ -869,7 +869,7 @@ class MasterC1P:
         A=numpy.zeros([len(indices),len(indices)])
 
         # Compute correlation matrix
-        for col1 in m.get_support():
+        for col1 in self.m.get_support():
             for row in m:
                 try:
                     row._Xs
@@ -903,8 +903,8 @@ class MasterC1P:
         o.close()
 
     def computePQtreeCorrelationMatrix(self, pq_tree):
-        m = bm.BinaryMatrix()       # matrix
-        m.from_file(self.acs_file)
+        #m = bm.BinaryMatrix()       # matrix
+        #m.from_file(self.acs_file)
 
         # Create numpy matrix
 
@@ -912,11 +912,11 @@ class MasterC1P:
         i=0
 
         # indices is a dictionary using the column names as keys for the matrix indices.
-        for col in m.get_support():
+        for col in self.m.get_support():
             indices[col]=i
             i+=1 
 
-        M=numpy.zeros([m._height,len(indices)])
+        M=numpy.zeros([self.m._height,len(indices)])
 
         # Populate binary matrix
         i=0
@@ -989,7 +989,12 @@ class MasterC1P:
     def makeMC1PBranchAndBound(self):
         self.do_c1p("TEL_BAB2", "branch and bound, added during", "/C1P/C1P_make_mC1P_branch_and_bound.py", "/C1P/C1P_compute_PQRtree.py")
 
+
+    def bmFromACSFile(self):
+        self.m.from_file(self.acs_file)
+
     def run(self):
+        self.m.bmFromACSFile()
         self.code_dir = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))) + "/code/c1p_files" # directory where the code is stored
         working_dir = os.path.dirname(self.species_tree)
 
