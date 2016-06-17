@@ -697,6 +697,15 @@ class MasterMarkers:
                     .format(strtime(), filtered_quant, copy_number_threshold ))
         return filtered_list
      #enddef
+
+    def isCopyNumGreaterThanOne(self, hom_fam_list):
+        filtered_list = filter(lambda fam: fam.copy_number <= 1, hom_fam_list)
+        filtered_quant = len(hom_fam_list) - len(filtered_list)
+
+        if filtered_quant != 0:
+            return True
+        else:
+            return False
  
     def closePairsFile(self):
         self.pairs_file_stream.close()
@@ -947,6 +956,8 @@ class MasterScript:
         self.genome_construction_obj = MasterGenConstruction()
 
         self.received_acs = False
+        self.doC1P = False
+        self.doMWM = False
     #enddef
 
     def setOutputStreams(self):
@@ -1054,6 +1065,12 @@ class MasterScript:
         # Since the markers are all oriented, double them.
         self.hom_fam_list = markers_phase_obj.doubleMarkers(self.hom_fam_list)
 
+        if markers_phase_obj.isCopyNumGreaterThanOne(self.hom_fam_list):
+            self.doC1P = False
+            self.doMWM = True
+        else:
+            self.doC1P = True
+            self.doMWM = False
 
         del markers_phase_obj
     #enddef
@@ -1075,8 +1092,6 @@ class MasterScript:
         c1p_obj = MasterC1P()
         c1p_obj.setConfigParams(self.config_file_directory)
         c1p_obj.run()
-
-
 
 
 
@@ -1114,6 +1129,9 @@ class MasterScript:
         self.closeLogFile()
         self.closeDebugFile()
     #enddef
+
+    def doC1PorNot(self):
+        return self.doC1P # if false, do MWM
 
     def getSpeciesList(self):
         for marker_family in self.hom_fam_list:

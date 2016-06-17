@@ -26,12 +26,14 @@ def main():
         master_script_obj.parse_markersPhase()
     # -------------------- FIND ADJACENCIES PHASE -----------------------
         master_script_obj.adjacenciesPhase()
-        print("teste")
 
     # -------------- ANCESTRAL GENOME CONSTRUCTION PHASE -----------------
     # Construct ancestral genome based on realizable intervals.
-    master_script_obj.genomeConstructionPhase() 
-
-    master_script_obj.c1pPhase()
+    if master_script_obj.doC1PorNot():
+        print("do c1P")
+        master_script_obj.c1pPhase()
+    else: # do MWM
+        print("do MWM")
+        master_script_obj.genomeConstructionPhase() 
 
 main()
