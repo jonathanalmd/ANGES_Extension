@@ -23,6 +23,10 @@ import copy
 import shutil
 import time
 
+import bm
+import c1p
+import pqtree
+
 
 def callprocess(params):
     process = subprocess.Popen(params, bufsize=0, executable=None, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=None, close_fds=False, shell=False, cwd=None, env=None, universal_newlines=False, startupinfo=None, creationflags=0)
@@ -246,17 +250,110 @@ class MasterC1P:
 
     def computePQRtree(self):
         if self.markers_doubled:
-            callprocess(["python", self.code_dir +"/C1P/C1P_compute_PQRtree.py", self.acs_file, self.pqr_tree_doubled, self.output_ancestor])
+            m = bm.BinaryMatrix()       # matrix
+            m.from_file(self.acs_file)
+                        
+            f = file(pqr_tree_doubled, 'w')      # PQR-tree file
+
+            f.write(">" + self.output_ancestor + "\n")
+            pqtree.make_PQR_tree(m).write(f.write)
+                        
+            f.close()
             if not self.quiet:
                 print("----> Halving PQR-tree columns") 
                     #endif
-            self.halvePQRtree()
+            self.halvePQRtree(self.pqr_tree_doubled, self.pqr_tree)
         else:
-            callprocess(["python", self.code_dir +"/C1P/C1P_compute_PQRtree.py", self.acs_file, self.pqr_tree, self.output_ancestor])
+            m = bm.BinaryMatrix()       # matrix
+            m.from_file(self.acs_file)
+                        
+            f = file(pqr_tree_doubled, 'w')      # PQR-tree file
+
+            f.write(">" + self.output_ancestor + "\n")
+            pqtree.make_PQR_tree(m).write(f.write)
+                        
+            f.close()
         #endif
 
-    def halvePQRtree(self):
-        callprocess(["python", self.code_dir +"/C1P/C1P_halve_PQRtree.py", self.pqr_tree_doubled, self.pqr_tree])
+    def halvePQRtree(self, pqr_tree_doubled, pqr_tree):
+        name_doubled=pqr_tree_doubled
+        name_halved=pqr_tree
+
+        input_file=open(name_doubled,"r").readlines()
+        output_file=open(name_halved,"w")
+
+        for i in range(len(input_file)):
+            if input_file[i][0]==">" or input_file[i][0]=="#":
+                output_file.write(input_file[i])
+            else:
+                mots=input_file[i].split()
+                m=0
+                while m<len(mots):
+                    if mots[m].find("_")>=0 or mots[m] == "T":
+                        output_file.write(mots[m]+" ")
+                        m=m+1
+                    else:
+                        m1=int(mots[m])
+                        try:
+                            m2=int(mots[m+1])
+                        except:
+                            if mots[m-1].find("C")>=0:
+                                m2=-100
+                            else:
+                                m=m+1
+                                
+                                continue
+                            #endif
+                        #endtry
+                        
+                        if abs(m1-m2)!=1:
+                            if mots[m-1].find("C")>=0:
+                                if m1%2==0:
+                                    output_file.write("-"+str(m1/2)+" ")
+                                else:
+                                    output_file.write(str((m1+1)/2)+" ")
+                                #endif
+                                
+                                m=m+1
+                                
+                                continue
+                            else:
+                                print("ERROR:  C1P_halve_PQRtree " + str(m1) + " " + str(m2))
+                                sys.exit(0)
+                            #endif
+                        #endif
+                        
+                        if m1<m2 and m2%2==0:
+                            output_file.write(str(m2/2)+" ")
+                        elif m2<m1 and m1%2==0:
+                            output_file.write("-"+str(m1/2)+" ")
+                        else:
+                            if mots[m-1].find("C")>=0:
+                                if m1%2==0:
+                                    output_file.write("-"+str(m1/2)+" ")
+                                else:
+                                    output_file.write(str((m1+1)/2)+" ")
+                                #endif
+                                
+                                m=m+1
+                                
+                                continue
+                            else:
+                                print("ERROR:  C1P_halve_PQRtree " + str(m1) + " " + str(m2))
+                                sys.exit(0)
+                            #endif
+                        #endif
+                        
+                        m=m+2
+                    #endif
+                #endwhile
+                
+                output_file.write("\n")
+            #endif
+        #endwhile
+
+        output_file.close()
+
 
 
     def computePQCRtree(self):
@@ -273,9 +370,19 @@ class MasterC1P:
             if not self.quiet:
                 print("----> Halving PQR-tree columns") 
                     #endif
-            self.halvePQRtree()
+            self.halvePQRtree(self.pqr_tree_doubled, self.pq_tree)
+
         else:
-            callprocess(["python", self.code_dir +"/C1P/C1P_compute_PQCRtree.py", self.acs_file, self.pqr_tree, self.output_ancestor])
+            m = bm.BinaryMatrix()       # matrix
+            m.from_file(self.acs_file)
+                        
+            f = file(self.pqr_tree, 'w')      # PQCR-tree file
+
+            f.write(">" + self.output_ancestor + "\n")
+            file_write = pqtree.make_PQCR_tree(m)
+            file_write.write(f.write)
+                        
+            f.close()
         #endif
 
     def makeC1PHeuristic(self):
@@ -291,10 +398,10 @@ class MasterC1P:
     def makeCircC1PBranchAndBound(self):
         self.do_c1p("BAB", "branch and bound", "/C1P/C1P_make_circC1P_branch_and_bound.py", "/C1P/C1P_compute_PQCRtree.py", True)
 
-    def computePQtreeDotProductCorrelationMatrix(self):
+    def computePQtreeDotProductCorrelationMatrix(self, pq_tree):
         callprocess(["python", self.code_dir +"/SERIATION/SERIATION_compute_PQtree_dotproduct_correlation_matrix.py", self.acs_file, str(self.c1p_spectral_alpha), pq_tree, self.output_ancestor])
 
-    def computePQtreeCorrelationMatrix(self):
+    def computePQtreeCorrelationMatrix(self, pq_tree):
         callprocess(["python", self.code_dir +"/SERIATION/SERIATION_compute_PQtree_correlation_matrix.py", self.acs_file, pq_tree, self.output_ancestor])
 
     def makeC1PSpectral(self):
@@ -304,12 +411,12 @@ class MasterC1P:
             if not self.quiet:
                 print("----> Computing PQ-tree from correlation matrix of a ternary matrix using parameter alpha") 
                     #endif
-            self.computePQtreeDotProductCorrelationMatrix()
+            self.computePQtreeDotProductCorrelationMatrix(pq_tree)
         else:
             if not self.quiet:
                 print("----> Computing PQ-tree using spectral seriation on correlation matrix") 
                     #endif
-            self.computePQtreeCorrelationMatrix()
+            self.computePQtreeCorrelationMatrix(pq_tree)
 
             #endif
 
