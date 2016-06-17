@@ -261,7 +261,15 @@ class MasterC1P:
 
     def computePQCRtree(self):
         if self.markers_doubled:
-            callprocess(["python", self.code_dir +"/C1P/C1P_compute_PQCRtree.py", self.acs_file, self.pqr_tree_doubled, self.output_ancestor])
+            m = bm.BinaryMatrix()       # matrix
+            m.from_file(self.acs_file)
+                        
+            f = file(self.pqr_tree_doubled, 'w')      # PQCR-tree file
+
+            f.write(">" + self.output_ancestor + "\n")
+            pqtree.make_PQCR_tree(m).write(f.write)
+                        
+            f.close()
             if not self.quiet:
                 print("----> Halving PQR-tree columns") 
                     #endif
