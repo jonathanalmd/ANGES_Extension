@@ -333,6 +333,9 @@ class MasterGenConstruction:
         return self.gens
     #enddef
 
+    def getAdjacencies(self):
+        return self.adj
+
     # writes hom. families to a file
     # file_name - str: the name of the file to write to
     # hom_fam_list - list of HomFam: the list to write (Default = [])
@@ -361,6 +364,8 @@ class MasterGenConstruction:
     def dealWithAdjPhase(self, species_pairs, hom_fam_list, output_directory, log, debug, all_match):
         # For each pair of species, compare the species to find adjacencies.
         self.adj.solveAdjacencies(species_pairs, self.gens, output_directory, log, all_match)
+        # how many times species pairs 
+
 
         # Do the same for repeat spanning intervals
         self.RSI.solveRSIs(species_pairs, self.gens, output_directory, log, all_match)
@@ -417,8 +422,6 @@ class MasterGenConstruction:
                    .format(strtime(), len(ancestor_genome.chromosomes) ) )
         log.write( "{}  Done.\n".format(strtime()) )
     #enddef
-
-
 #endclass
 
 class MasterScript:
@@ -451,6 +454,10 @@ class MasterScript:
         self.species_set = set()
         self.overlapping_pairs_list = []
         self.genome_construction_obj = MasterGenConstruction()
+
+        self.adjacencies = {}
+        self.realizable_adjacencies = {}
+        self.discarded_adjacencies = {}
 
         self.received_acs = False
         self.doC1P = False
@@ -578,11 +585,27 @@ class MasterScript:
         # Genome construction
         self.genome_construction_obj.constructGenomes(self.species_pairs, self.hom_fam_list, self.log)
         self.genome_construction_obj.dealWithAdjPhase(self.species_pairs, self.hom_fam_list, self.io_dict["output_directory"], self.log, self.debug, self.run_param_dict["all_match"])
+
+
+        # REMOVE LATER
+        # adjacencies = self.genome_construction_obj.getAdjacencies().getAdjacencies()
+        # realizable_adjacencies = self.genome_construction_obj.getAdjacencies().getRealizableAdjacencies()
+        # discarded_adjacencies = self.genome_construction_obj.getAdjacencies().getDiscardedAdjacencies()
+
+        # c1p_obj = process_c1p.MasterC1P()
+        # c1p_obj.setConfigParams(self.config_file_directory,adjacencies,realizable_adjacencies,discarded_adjacencies)
+        # c1p_obj.bmFromDictionary()
+
     #enddef
 
     def c1pPhase(self):
         c1p_obj = process_c1p.MasterC1P()
-        c1p_obj.setConfigParams(self.config_file_directory)
+
+        adjacencies = self.genome_construction_obj.getAdjacencies().getAdjacencies()
+        realizable_adjacencies = self.genome_construction_obj.getAdjacencies().getRealizableAdjacencies()
+        discarded_adjacencies = self.genome_construction_obj.getAdjacencies().getDiscardedAdjacencies()
+
+        c1p_obj.setConfigParams(self.config_file_directory,adjacencies,realizable_adjacencies,discarded_adjacencies)
         c1p_obj.run()
 
     def genomeConstructionPhase(self):

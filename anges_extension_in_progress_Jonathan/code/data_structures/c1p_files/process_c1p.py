@@ -4,10 +4,11 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))) + '/COMMON')
 
-
 import copy
 import shutil
 import time
+
+from data_structures import intervals
 
 import bm
 import c1p
@@ -62,7 +63,12 @@ class MasterC1P:
         self.acs_file_provided = False
         self.acs_pairs_provided = False
 
-    def setConfigParams(self, config_file):
+        self.adjacencies = {}
+        self.realizable_adjacencies = {}
+        self.discarded_adjacencies = {}
+
+
+    def setConfigParams(self, config_file, adj, rlz_adj, disc_adj):
         try:
             config = {}
             execfile(config_file, config)
@@ -102,6 +108,10 @@ class MasterC1P:
             self.cars_dir = self.output_dir + "/CARS"
             self.pqr_tree = self.cars_dir + "/" + self.output_prefix + "PQRTREE"        # PQR-tree file
 
+            self.adjacencies = adj
+            self.realizable_adjacencies = rlz_adj
+            self.discarded_adjacencies = disc_adj
+
         except IOError:
             print("{}  ERROR (master.py -> process.py) - could not open configuration file: {}\n"
                     .format(strtime(),config_file))
@@ -139,7 +149,6 @@ class MasterC1P:
         #    print("ERROR: the sandwich c1p requires using corrected ACS with X's ")
         #    sys.exit(-1)
         #endif    
-
 
         ## Current limitations
 
@@ -930,9 +939,7 @@ class MasterC1P:
             i+=1
 
         o.close()
-
        
-
     def makeC1PSpectral(self):
         pq_tree = self.cars_dir + "/" + self.output_prefix + "PQTREE_SERIATION"    
 
@@ -953,7 +960,6 @@ class MasterC1P:
     def makeC1PHeuristic(self):
         self.do_c1p("HEUR", "heuristic", "/C1P/C1P_make_C1P_heuristic.py", "/C1P/C1P_compute_PQRtree.py")
 
-
     def makeCircC1PHeuristic(self):
         self.do_c1p("HEUR", "heuristic", "/C1P/C1P_make_circC1P_heuristic.py", "/C1P/C1P_compute_PQCRtree.py", True)
 
@@ -962,8 +968,6 @@ class MasterC1P:
 
     def makeCircC1PBranchAndBound(self):
         self.do_c1p("BAB", "branch and bound", "/C1P/C1P_make_circC1P_branch_and_bound.py", "/C1P/C1P_compute_PQCRtree.py", True)
-
-
 
     def makeMC1PHeuristic(self):
         self.do_c1p("TEL_HEUR", "heuristic", "/C1P/C1P_make_mC1P_heuristic.py", "/C1P/C1P_compute_PQRtree.py")
@@ -974,12 +978,18 @@ class MasterC1P:
     def makeMC1PBranchAndBound(self):
         self.do_c1p("TEL_BAB2", "branch and bound, added during", "/C1P/C1P_make_mC1P_branch_and_bound.py", "/C1P/C1P_compute_PQRtree.py")
 
+    def bmFromDictionary(self):
+        self.m.from_dictionary(self.adjacencies)
 
     def bmFromACSFile(self):
         self.m.from_file(self.acs_file)
 
     def run(self):
-        self.bmFromACSFile()
+        if self.acs_file != "": # if received acs_file
+            self.bmFromACSFile()
+        else:
+            self.bmFromDictionary()
+
         self.code_dir = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))) + "/code/c1p_files" # directory where the code is stored
         working_dir = os.path.dirname(self.species_tree)
 
@@ -1060,7 +1070,3 @@ class MasterC1P:
         
         if not self.quiet:
             print("----> Done")
-        
-
-
-

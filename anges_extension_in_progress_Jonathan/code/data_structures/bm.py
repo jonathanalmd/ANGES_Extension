@@ -4,8 +4,6 @@
 
 import sort
 from decimal import *
-from data_structures import intervals
-
 
 #######################################################
 #    bm.py
@@ -164,6 +162,9 @@ class BinaryMatrix:
 	def __init__(self):
 		self._rows = []		# list of rows in the matrix
 		self._height = 0		# height of the matrix
+        self.adjacencies = intervals.IntervalDict()
+        self.realizable_adjacencies = intervals.IntervalDict()
+        self.discarded_adjacencies = intervals.IntervalDict()
 	#enddef
 		
 	# returns the string representation of the BinaryMatrix where each row is written on its own line in the format:
@@ -185,129 +186,7 @@ class BinaryMatrix:
 			write_fn(str(r) + '\n')
 		#endfor
 	#enddef
-
-
-	# adds row onto the bottom of the matrix
-	#
-	# row: set of columns with a 1 - set of int
-	# ident: id of the row - str
-	# weight: weight of the row - decimal.Decimal
-	# sp: species that realize the row - list of string
-	# isT: True if the row is a telomere - bool
-
-	# def add_row(self, row, ident = '-1', weight = Decimal('0'), sp = [], isT = False):
-	# 	if ident == '-1':
-	# 		ident = str(self._height)
-	# 	#endif
 	
-	# 	self._rows.append(Row(row, ident, weight, sp, isT))
-			
-	# 	self._height += 1
-	# #enddef
-
-
-	# return "id={} marker_ids={} loci={} order={} weight={} comment={}".format(self.id, self.marker_ids, self.loci, self.order, self.weight, self.comment)
-	# loci = list of locus 
-		# loci[i].getSpecies() => get locus species
-		# loop to get a list of species
-	def from_dictionary(self, adjacencies):
-		list_of_species = []
-
-		i = 1
-		lines = []
-		for key, value in adjacencies.ints.iteritems():
-			# print value.loci
-			for locus in value.loci:
-				list_of_species.append(locus.getSpecies())
-			line = ""
-			line = str(i) + "|" + str(value.getWeight()) + ";"
-			for species in list_of_species:
-				line = line + species + ","
-			line = line[:-1] + ":"
-			for marker_id in value.marker_ids:
-				line = line + str(int(marker_id[:-2])) + " "
-			line = line[:-1]
-			lines.append(line)
-			# add row
-			list_of_species = []
-			i = i + 1
-
-		for line in lines:
-			tok = line.split()
-			first = tok[0].split('|')
-			isT = False
-			pos = None
-									
-			if len(first) > 1:		# standard				
-				ident = first[0]
-				first = first[1].split(';')
-								
-				if len(first) > 1:
-					weight = Decimal(first[0])
-					
-					first = first[1].split(':')
-				else:		# weightless
-					weight = Decimal('0.0')
-											
-					first = first[0].split(':')
-				# endif
-			
-				sp = first[0].split(',')
-				tok[0] = first[1]	
-			else:		# old (testing only)
-				ident = '0'
-				weight = Decimal(tok[0])
-				sp = []
-				
-				del tok[0]
-			#endif
-			
-			if sp == ['']:
-				sp = []
-			#endif
-		
-			X = -1
-			i = 0
-		
-			while i < len(tok):
-				try:
-					tok[i] = int(tok[i])
-				except ValueError:
-					if (tok[i] == 'T'):
-						isT = True
-						
-						del tok[i]
-						
-						i -= 1
-					elif(tok[i] == 'X'):
-						X = i
-						
-						del tok[i]
-						
-						i -= 1
-					elif(tok[i] == 'P'):
-						pos = [tok[i+1], tok[i+2]]
-						
-						del tok[i]
-						del tok[i+1]
-						del tok[i+2]
-						
-						i -= 1
-					#endif
-				#endtry
-				
-				i += 1
-			#endwhile
-		
-			if X == -1:
-				self.add_row(set(tok), ident, weight, sp, isT)					
-			else:
-				self.add_row_info(XRow(set(tok[0:X]), set(tok[X:]), ident, weight, sp, isT))
-			#endif
-			
-			self._rows[-1]._pos = pos
-
-
 	# reads a Binary Matrix in from file with file name, file_name, where each line is a row in the matrix
 	# there are 3 different formats accepted for lines
 	#

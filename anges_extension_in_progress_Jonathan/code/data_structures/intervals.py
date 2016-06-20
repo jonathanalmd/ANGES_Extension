@@ -21,6 +21,14 @@ class Interval:
         self.comment = comment
     #enddef
 
+    def __repr__(self):
+        #Return the direct representation of Genome_pairs_index class
+        return "id={} marker_ids={} loci={} order={} weight={} comment={}".format(self.id, self.marker_ids, self.loci, self.order, self.weight, self.comment)
+
+    def getWeight(self):
+        return self.weight
+
+
     # returns the header of the interval in the form
     # \><id> <weight> <order>  <marker1> <marker2> ... <markern> # comment
     # Return - str
@@ -214,6 +222,11 @@ class IntervalDict:
         # To look up intervals by endpoint, keep an additional dictionary that
         # maps each marker ID to a list keys for 'ints' (list of marker IDs).
         self.endpoints = {}
+
+    def __repr__(self):
+        #Return the direct representation 
+        return "Intervals={} Endpoints={} ".format(self.ints, self.endpoints)
+
 
     # Custom hash function for list of marker IDs, hashes ids and reversed(ids)
     # to the same value. The results will be the keys in the internal dict.

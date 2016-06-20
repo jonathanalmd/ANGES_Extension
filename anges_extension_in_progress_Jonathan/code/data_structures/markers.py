@@ -27,6 +27,9 @@ class Locus:
         return ( self.species, self.chromosome, self.start, self.end, self.orientation ) < \
                ( other.species, other.chromosome, other.start, other.end, other.orientation )
 
+    def getSpecies(self):
+        return self.species
+        
     # Returns a string representing the locus with given the separators. Will not print the comment if it is empty.
     # <species name>sp1<chromosome name>sp2<start>sp3<end>sp4<orientation>sp5<comment>
     # Parameters
