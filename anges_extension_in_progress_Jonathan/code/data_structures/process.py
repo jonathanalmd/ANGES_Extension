@@ -562,7 +562,9 @@ class MasterScript:
         # Since the markers are all oriented, double them.
         self.hom_fam_list = markers_phase_obj.doubleMarkers(self.hom_fam_list)
 
-        if markers_phase_obj.isCopyNumGreaterThanOne(self.hom_fam_list):
+        # if there is some marker with copy number greater than one, do MWM
+        # if all copy numbers are one, do C1P
+        if markers_phase_obj.isCopyNumGreaterThanOne(self.hom_fam_list): 
             self.doC1P = False
             self.doMWM = True
         else:
@@ -578,12 +580,10 @@ class MasterScript:
         self.genome_construction_obj.dealWithAdjPhase(self.species_pairs, self.hom_fam_list, self.io_dict["output_directory"], self.log, self.debug, self.run_param_dict["all_match"])
     #enddef
 
-
     def c1pPhase(self):
         c1p_obj = process_c1p.MasterC1P()
         c1p_obj.setConfigParams(self.config_file_directory)
         c1p_obj.run()
-
 
     def genomeConstructionPhase(self):
         self.genome_construction_obj.dealWithConstructionPhase(self.hom_fam_list, self.io_dict["output_directory"], self.log)

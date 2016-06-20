@@ -22,7 +22,7 @@ def main():
 
 
     # ------------------------ PARSE_MARKERS PHASE -------------------------------
-    if not master_script_obj.receivedAcsFile():
+    if not master_script_obj.receivedAcsFile(): # if received ACS, skip this part
         master_script_obj.parse_markersPhase()
     # -------------------- FIND ADJACENCIES PHASE -----------------------
         master_script_obj.adjacenciesPhase()
@@ -30,8 +30,10 @@ def main():
     # -------------- ANCESTRAL GENOME CONSTRUCTION PHASE -----------------
     # Construct ancestral genome based on realizable intervals.
     if master_script_obj.doC1PorNot():
+        print("Running C1P")
         master_script_obj.c1pPhase()
     else: # do MWM
+        print("Running MWM")
         master_script_obj.genomeConstructionPhase() 
 
 main()
