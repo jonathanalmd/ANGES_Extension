@@ -13,19 +13,51 @@ import networkx
 #   max_adjacencies: IntervalDict - the maximal subset of adjacencies that are
 #                                   realizable.
 def opt_adjacencies( hom_fams, adjacencies ):
-    # First, create a networkx graph to encode the markers and adjacencies in
-    # the arguments, to make further processing easier.
-    G_0 = networkx.Graph()
-    G_0.add_nodes_from( [ hom_fam.id for hom_fam in hom_fams ] )
-    for adjacency in adjacencies.itervalues():
-        id1, id2 = adjacency.marker_ids[0], adjacency.marker_ids[-1]
-        G_0.add_edge( id1, id2, weight=adjacency.weight, adj=adjacency )
+
+
+    #import pdb; pdb.set_trace()
+
     # We need to find a 2m-matching of the markers, but since we assume that we
     # are working with doubled markers, in this case we need an m-matching.
     # Create a dictionary that maps markers to their multiplicity:
     multiplicity = {}
+    multiplicity_high = []
     for hom_fam in hom_fams:
         multiplicity[ hom_fam.id ] = hom_fam.copy_number
+        if hom_fam.copy_number > 1:
+            multiplicity_high.append(hom_fam.id)
+    print multiplicity_high
+
+
+    # First, create a networkx graph to encode the markers and adjacencies in
+    # the arguments, to make further processing easier.
+    rc_list = []
+    rc_content = []
+    rc_list.append(rc_content)
+    G_0 = networkx.Graph()
+    G_9 = networkx.Graph()
+    G_0.add_nodes_from( [ hom_fam.id for hom_fam in hom_fams ] )
+    for adjacency in adjacencies.itervalues():
+        id1, id2 = adjacency.marker_ids[0], adjacency.marker_ids[-1]
+        G_0.add_edge( id1, id2, weight=adjacency.weight, adj=adjacency )
+        if id1 in multiplicity_high:
+            if id2 in multiplicity_high:
+                G_9.add_edge(id1,id2, weight=adjacency.weight, adj=adjacency)
+            else:
+                G_9.add_edge(id1,id1, weight=-1, adj=adjacency)
+        elif id2 in multiplicity_high:
+            G_9.add_edge(id2,id2, weight=-1,adj=adjacency)
+
+    G_9.add_edge('179_t','16_t',weight=-1)
+    edges_list = G_9.edges()
+    print edges_list
+    print edges_list[0][0], edges_list[0][1]
+    print(networkx.is_connected(G_9))
+    print [len(c) for c in sorted(networkx.connected_components(G_9), key=len, reverse=True)]
+    
+    high_cp_graph = [c for c in sorted(networkx.connected_components(G_9), key=len, reverse=True)]
+
+    print high_cp_graph
 
     # Make a new networkx graph, and create structure required for the matching
     # algorithm to work.
@@ -83,7 +115,6 @@ def opt_adjacencies( hom_fams, adjacencies ):
             if edge_vertex_2 in matching and adj_at_other_marker:
                 adjacency = G_0[ m1 ][ m2 ][ 'adj' ]
                 max_adjacencies.add( adjacency )
-
     return max_adjacencies
 
 

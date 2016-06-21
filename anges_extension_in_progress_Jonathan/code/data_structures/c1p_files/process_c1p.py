@@ -889,7 +889,7 @@ class MasterC1P:
         o=open(pq_tree,'w')
         o.write('>'+self.output_ancestor.upper()+'\n')
         i=1
-
+        
         for t in T:
             if '_P' in t.printTree().split(' ') or '_Q' in t.printTree().split(' '):
                 o.write('#CAR'+str(i)+'\n')

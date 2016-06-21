@@ -402,9 +402,9 @@ class MasterGenConstruction:
         ancestor_genome = next( self.ancestor_genomes.itervalues() )
         try:
             genome_output = open( output_directory + "/ancestor_genome", 'w' )
-            genome_output.write( ">" + self.ancestor_name + "\n" )
-            for chrom_id, chrom in ancestor_genome.chromosomes.iteritems():
-                genome_output.write( "#" + chrom_id + "\n" )
+            genome_output.write( ">" + self.ancestor_name)
+            for chrom_id, chrom in ancestor_genome.chromosomes.iteritems(): # Chrom_id = CARs
+                genome_output.write( "\n#CAR " + chrom_id + "\n" )
                 for marker in chrom:
                     if marker.locus.orientation > 0:
                         orient = "+"
@@ -412,7 +412,7 @@ class MasterGenConstruction:
                         orient = "-"
                     else:
                         orient = "x"
-                    genome_output.write( marker.id + " " + orient + "\n" )
+                    genome_output.write( marker.id + orient)
         except IOError:
             loglog.write( "{}  ERROR (master.py) - could not write ancestor genome to " "file: {}\n"
                             .format(strtime(), output_directory + "/ancestor_genome" ) )
@@ -560,6 +560,7 @@ class MasterScript:
 
         # Filter by Copy Number
         if self.markers_param_dict["filter_copy_number"] != 0:
+            print "filtering"
             self.hom_fam_list = markers_phase_obj.filterByCopyNumber(self.markers_param_dict["filter_copy_number"], self.hom_fam_list, self.log)
 
         #Get all overlapped pairs
@@ -571,7 +572,7 @@ class MasterScript:
 
         # if there is some marker with copy number greater than one, do MWM
         # if all copy numbers are one, do C1P
-        if markers_phase_obj.isCopyNumGreaterThanOne(self.hom_fam_list): 
+        if markers_phase_obj.isCopyNumGreaterThanOne(self.hom_fam_list):
             self.doC1P = False
             self.doMWM = True
         else:
