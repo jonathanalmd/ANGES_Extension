@@ -217,6 +217,8 @@ class MasterAdjacencies:
         self.adjacencies = intervals.IntervalDict()
         self.realizable_adjacencies = intervals.IntervalDict()
         self.discarded_adjacencies = intervals.IntervalDict()
+        self.repeat_cluster = []
+        self.repeat_cluster_int = []
     #enddef
 
     def getAdjacencies(self):
@@ -230,6 +232,12 @@ class MasterAdjacencies:
     def getDiscardedAdjacencies(self):
         return self.discarded_adjacencies
     #enddef
+
+    def getRepeatClusterList(self):
+        return self.repeat_cluster
+
+    def getRepeatClusterListInt(self):
+        return self.repeat_cluster_int
 
     def solveAdjacencies(self, species_pairs, gens, output_directory, log, all_match):
         for pair in species_pairs:
@@ -246,12 +254,14 @@ class MasterAdjacencies:
     #enddef
 
     def selectMaxAdjacencies(self, hom_fam_list, output_directory, log):
-        self.realizable_adjacencies = optimization.opt_adjacencies(hom_fam_list, self.adjacencies)
+        self.realizable_adjacencies, self.repeat_cluster, self.repeat_cluster_int = optimization.opt_adjacencies(hom_fam_list, self.adjacencies)
         intervals.write_intervals(log, self.realizable_adjacencies, 
                          output_directory + "/realizable_adjacencies",
                         )
         log.write( "{}  Found {} realizable adjacencies with total weight of {}.\n"
                .format(strtime(),len(self.realizable_adjacencies), self.realizable_adjacencies.total_weight ) )
+        log.write( "{}  Found {} repeat clusters.\n"
+                .format(strtime(), len(self.repeat_cluster)))
         log.flush()
     #enddef
 
@@ -379,9 +389,12 @@ class MasterGenConstruction:
         # Select maximal subsets of RSIs that are realizable.
         self.RSI.selectMaxRSIs(hom_fam_list, self.adj.realizable_adjacencies, output_directory, log, debug)
 
-        # Keep track of RSIs that have been discarded.
+        # Keopep track of RSIs that have been discarded.
         self.RSI.trackDiscardedRSIs(output_directory, log)
     #enddef
+
+    def checkAncestralAdjacencies(self, markers, adjacencies, repeat_clusters, ancestor_genome):
+        pass
 
     def dealWithConstructionPhase(self, hom_fam_list, output_directory, log):
         self.ancestor_hom_fams = assembly.assemble(
@@ -400,9 +413,19 @@ class MasterGenConstruction:
             [ self.ancestor_name ]
             )
         ancestor_genome = next( self.ancestor_genomes.itervalues() )
+
+        self.checkAncestralAdjacencies(hom_fam_list, self.adj.realizable_adjacencies, self.adj.getRepeatClusterListInt, ancestor_genome)
+        for adjacency in self.adj.adjacencies.itervalues():
+            print adjacency
         try:
             genome_output = open( output_directory + "/ancestor_genome", 'w' )
             genome_output.write( ">" + self.ancestor_name)
+            for index, rc in enumerate(self.adj.getRepeatClusterList()):
+                genome_output.write("\n#RC " + str(index+1) + "\n" + rc)
+                print ("RC {}".format(index+1))
+                print rc
+            print self.adj.getRepeatClusterListInt()
+            genome_output.write("\n")
             for chrom_id, chrom in ancestor_genome.chromosomes.iteritems(): # Chrom_id = CARs
                 genome_output.write( "\n#CAR " + chrom_id + "\n" )
                 for marker in chrom:
@@ -412,7 +435,17 @@ class MasterGenConstruction:
                         orient = "-"
                     else:
                         orient = "x"
-                    genome_output.write( marker.id + orient)
+                    flag = False
+                    for index, rc in enumerate(self.adj.getRepeatClusterListInt()):
+                        if int(marker.id) in rc:
+                            genome_output.write("RC" + str(index+1) + " ")
+                            flag = True
+                    if flag:
+                        break
+                    else:
+                        genome_output.write( marker.id + orient)
+                if flag:
+                    continue
         except IOError:
             loglog.write( "{}  ERROR (master.py) - could not write ancestor genome to " "file: {}\n"
                             .format(strtime(), output_directory + "/ancestor_genome" ) )

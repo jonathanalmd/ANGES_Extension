@@ -28,12 +28,8 @@ def opt_adjacencies( hom_fams, adjacencies ):
             multiplicity_high.append(hom_fam.id)
     print multiplicity_high
 
-
     # First, create a networkx graph to encode the markers and adjacencies in
     # the arguments, to make further processing easier.
-    rc_list = []
-    rc_content = []
-    rc_list.append(rc_content)
     G_0 = networkx.Graph()
     G_9 = networkx.Graph()
     G_0.add_nodes_from( [ hom_fam.id for hom_fam in hom_fams ] )
@@ -47,18 +43,27 @@ def opt_adjacencies( hom_fams, adjacencies ):
                 G_9.add_edge(id1,id1, weight=-1, adj=adjacency)
         elif id2 in multiplicity_high:
             G_9.add_edge(id2,id2, weight=-1,adj=adjacency)
-
-    G_9.add_edge('179_t','16_t',weight=-1)
-    edges_list = G_9.edges()
-    print edges_list
-    print edges_list[0][0], edges_list[0][1]
-    print(networkx.is_connected(G_9))
-    print [len(c) for c in sorted(networkx.connected_components(G_9), key=len, reverse=True)]
-    
+    # G_9.add_edge('179_t','16_t',weight=-1)
+    # edges_list = G_9.edges()
+    # print edges_list
     high_cp_graph = [c for c in sorted(networkx.connected_components(G_9), key=len, reverse=True)]
-
     print high_cp_graph
 
+    rc_total_list = []
+    rc_total_list_int = []
+    dont_print = []
+    for rc in high_cp_graph:
+        rc_elements = ""
+        rc_elements_int = []
+        for rc_elem in rc:
+            if int(rc_elem[:-2]) not in dont_print:
+                dont_print.append(int(rc_elem[:-2]))
+                rc_elements = rc_elements + (rc_elem[:-2]) + " "
+                rc_elements_int.append(int(rc_elem[:-2]))
+        if rc_elements:
+            rc_total_list.append(rc_elements[:-1])
+            rc_total_list_int.append(rc_elements_int)
+    
     # Make a new networkx graph, and create structure required for the matching
     # algorithm to work.
     G = networkx.Graph()
@@ -115,7 +120,7 @@ def opt_adjacencies( hom_fams, adjacencies ):
             if edge_vertex_2 in matching and adj_at_other_marker:
                 adjacency = G_0[ m1 ][ m2 ][ 'adj' ]
                 max_adjacencies.add( adjacency )
-    return max_adjacencies
+    return max_adjacencies, rc_total_list, rc_total_list_int
 
 
 # Function to find maximal subset (w.r.t weight) of RSIs between given markers,
