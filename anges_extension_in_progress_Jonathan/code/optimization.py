@@ -21,48 +21,32 @@ def opt_adjacencies( hom_fams, adjacencies ):
     # are working with doubled markers, in this case we need an m-matching.
     # Create a dictionary that maps markers to their multiplicity:
     multiplicity = {}
-    multiplicity_high = []
+    # multiplicity_high = []
     for hom_fam in hom_fams:
         multiplicity[ hom_fam.id ] = hom_fam.copy_number
-        if hom_fam.copy_number > 1:
-            multiplicity_high.append(hom_fam.id)
-    print multiplicity_high
+        # if hom_fam.copy_number > 1:
+            # multiplicity_high.append(hom_fam.id)
+    # print multiplicity_high
 
     # First, create a networkx graph to encode the markers and adjacencies in
     # the arguments, to make further processing easier.
     G_0 = networkx.Graph()
-    G_9 = networkx.Graph()
     G_0.add_nodes_from( [ hom_fam.id for hom_fam in hom_fams ] )
     for adjacency in adjacencies.itervalues():
         id1, id2 = adjacency.marker_ids[0], adjacency.marker_ids[-1]
         G_0.add_edge( id1, id2, weight=adjacency.weight, adj=adjacency )
-        if id1 in multiplicity_high:
-            if id2 in multiplicity_high:
-                G_9.add_edge(id1,id2, weight=adjacency.weight, adj=adjacency)
-            else:
-                G_9.add_edge(id1,id1, weight=-1, adj=adjacency)
-        elif id2 in multiplicity_high:
-            G_9.add_edge(id2,id2, weight=-1,adj=adjacency)
+        # if id1 in multiplicity_high:
+        #     if id2 in multiplicity_high:
+        #         G_9.add_edge(id1,id2, weight=adjacency.weight, adj=adjacency)
+        #     else:
+        #         G_9.add_edge(id1,id1, weight=-1, adj=adjacency)
+        # elif id2 in multiplicity_high:
+        #     G_9.add_edge(id2,id2, weight=-1,adj=adjacency)
     # G_9.add_edge('179_t','16_t',weight=-1)
     # edges_list = G_9.edges()
     # print edges_list
-    high_cp_graph = [c for c in sorted(networkx.connected_components(G_9), key=len, reverse=True)]
-    print high_cp_graph
 
-    rc_total_list = []
-    rc_total_list_int = []
-    dont_print = []
-    for rc in high_cp_graph:
-        rc_elements = ""
-        rc_elements_int = []
-        for rc_elem in rc:
-            if int(rc_elem[:-2]) not in dont_print:
-                dont_print.append(int(rc_elem[:-2]))
-                rc_elements = rc_elements + (rc_elem[:-2]) + " "
-                rc_elements_int.append(int(rc_elem[:-2]))
-        if rc_elements:
-            rc_total_list.append(rc_elements[:-1])
-            rc_total_list_int.append(rc_elements_int)
+    
     
     # Make a new networkx graph, and create structure required for the matching
     # algorithm to work.
@@ -97,6 +81,7 @@ def opt_adjacencies( hom_fams, adjacencies ):
 
     # Translate the matching solution back to the m-matching we want on the
     # given markers.
+    G_8 = networkx.Graph()
     max_adjacencies = intervals.IntervalDict()
     for u, v in matching.iteritems():
         # If an edge in G_0 is part of the m-matching, it will be 'caught' four
@@ -120,6 +105,32 @@ def opt_adjacencies( hom_fams, adjacencies ):
             if edge_vertex_2 in matching and adj_at_other_marker:
                 adjacency = G_0[ m1 ][ m2 ][ 'adj' ]
                 max_adjacencies.add( adjacency )
+                if multiplicity[m1] > 1:
+                    if multiplicity[m2] > 1:
+                        G_8.add_edge(m1,m2, weight=adjacency.weight, adj= adjacency)
+                    else:
+                        G_8.add_edge(m1,m1, weight=1, adj= adjacency)
+                elif multiplicity[m2] > 1:
+                    G_8.add_edge(m2,m2,weight=1, adj= adjacency)
+
+    high_cp_graph = [c for c in sorted(networkx.connected_components(G_8), key=len, reverse=True)]
+    print high_cp_graph
+    
+    rc_total_list = []
+    rc_total_list_int = []
+    dont_print = []
+    for rc in high_cp_graph:
+        rc_elements = ""
+        rc_elements_int = []
+        for rc_elem in rc:
+            if int(rc_elem[:-2]) not in dont_print:
+                dont_print.append(int(rc_elem[:-2]))
+                rc_elements = rc_elements + (rc_elem[:-2]) + " "
+                rc_elements_int.append(int(rc_elem[:-2]))
+        if rc_elements:
+            rc_total_list.append(rc_elements[:-1])
+            rc_total_list_int.append(rc_elements_int)
+
     return max_adjacencies, rc_total_list, rc_total_list_int
 
 

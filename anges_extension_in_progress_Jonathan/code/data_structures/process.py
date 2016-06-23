@@ -13,6 +13,8 @@ import assembly
 
 from c1p_files import process_c1p
     
+import re
+
 def strtime():
     """
     Function to format time to string
@@ -337,6 +339,7 @@ class MasterGenConstruction:
         self.ancestor_name = "ANCESTOR"
         self.ancestor_hom_fams = []
         self.gens = {}
+        self.RSI_strings = []
     #enddef
 
     def getGenomes(self):
@@ -415,8 +418,18 @@ class MasterGenConstruction:
         ancestor_genome = next( self.ancestor_genomes.itervalues() )
 
         self.checkAncestralAdjacencies(hom_fam_list, self.adj.realizable_adjacencies, self.adj.getRepeatClusterListInt, ancestor_genome)
-        for adjacency in self.adj.adjacencies.itervalues():
-            print adjacency
+
+        RSI_no_doubling = []
+        max_RSI = 0
+        for index, markers in enumerate(self.RSI.realizable_RSIs.itervalues()):
+            RSI_no_doubling = [self.remove_head_tail(s) for s in markers.marker_ids]
+            self.RSI_strings.append(" ".join(self.remove_duplicates(RSI_no_doubling)))
+            if len(RSI_no_doubling) > max_RSI:
+                max_RSI = len(self.remove_duplicates(RSI_no_doubling))
+        print "max_RSI:"
+        print max_RSI
+        print self.RSI_strings
+
         try:
             genome_output = open( output_directory + "/ancestor_genome", 'w' )
             genome_output.write( ">" + self.ancestor_name)
@@ -426,26 +439,100 @@ class MasterGenConstruction:
                 print rc
             print self.adj.getRepeatClusterListInt()
             genome_output.write("\n")
-            for chrom_id, chrom in ancestor_genome.chromosomes.iteritems(): # Chrom_id = CARs
+
+
+
+            CAR_total_list = []
+            CAR_string = ""
+            CAR_string_aux = ""
+            for chrom_id, chrom in ancestor_genome.chromosomes.iteritems(): # Chrom = CARs
                 genome_output.write( "\n#CAR " + chrom_id + "\n" )
-                for marker in chrom:
-                    if marker.locus.orientation > 0:
+                if CAR_string:
+                    CAR_total_list.append(CAR_string)
+                CAR_string = ""
+                index = 0
+                previous_position = []
+                while index < len(chrom):
+                    if chrom[index].locus.orientation > 0:
                         orient = "+"
-                    elif marker.locus.orientation < 0:
+                    elif chrom[index].locus.orientation < 0:
                         orient = "-"
                     else:
                         orient = "x"
                     flag = False
-                    for index, rc in enumerate(self.adj.getRepeatClusterListInt()):
-                        if int(marker.id) in rc:
-                            genome_output.write("RC" + str(index+1) + " ")
+
+                    for index_rc, rc in enumerate(self.adj.getRepeatClusterListInt()):
+                        if int(chrom[index].id) in rc:
+                            # REMOVE LATER
+                            genome_output.write(chrom[index].id + orient)
+                            genome_output.write("RC" + str(index_rc+1) + " ")
                             flag = True
+
+                    CAR_string = CAR_string + str(chrom[index].id) + " "
                     if flag:
-                        break
+                        # print "starting to deal with RSI"
+                        # print "CAR_string: " + CAR_string
+                        i = 0
+                        chrom_index = index + 1
+                        CAR_string_aux = CAR_string
+                        while i < max_RSI and chrom_index < len(chrom):
+                            CAR_string_aux = CAR_string_aux + str(chrom[chrom_index].id) + " "
+                            chrom_index = chrom_index + 1
+                            i = i + 1
+                        # print "New CAR_string: " + CAR_string_aux
+                        found_rsi = False
+                        for rsi_unit in self.RSI_strings:
+                            # print rsi_unit
+                            position = [m.start() for m in re.finditer(rsi_unit, CAR_string_aux)]
+                            if position and position not in previous_position :
+                                print CAR_string_aux
+                                print "=====================Found RSI-> " + rsi_unit
+                                previous_position.append([m.start() for m in re.finditer(rsi_unit, CAR_string_aux)])
+                                found_rsi = True
+                        if not found_rsi:
+                            print CAR_string_aux
+                            index = chrom_index
+                            CAR_string = CAR_string_aux
+                            print "*******not found RSI-> use RC"
+                            break
+                        # print "end dealing with RSI"
                     else:
-                        genome_output.write( marker.id + orient)
+                        last_marker_id = chrom[index].id
+                        genome_output.write( chrom[index].id + orient)
+                    index = index + 1
+                
+                    # last_marker_id = marker.id
+                    # genome_output.write( marker.id + orient)
+
+                for adj in self.adj.realizable_adjacencies.itervalues():
+                        if adj.marker_ids[0][:-2] == str(last_marker_id):
+                            if adj.marker_ids[1][:-2] == str(chrom[0].id):
+                                # print "Circular"
+                                CAR_string = "_C " + CAR_string + "C_"
+                                # print CAR_string
+                            else:
+                                # print "Not Circular"
+                                CAR_string = "_Q " + CAR_string + "Q_"
+                                # print CAR_string
+                        elif adj.marker_ids[1][:-2] == str(last_marker_id):
+                            if adj.marker_ids[0][:-2] == str(chrom[0].id):
+                                # print "Circular"
+                                CAR_string = "_C " + CAR_string + "C_"
+                                # print CAR_string
+                            else:
+                                # print "Not Circular"
+                                CAR_string = "_Q " + CAR_string + "Q_"
+                                # print CAR_string
                 if flag:
                     continue
+            # i = 0
+            # for CAR in CAR_total_list:
+            #     print "CAR" + str(i) + CAR
+            #     for rsi_unit in self.RSI_strings:
+            #         # print rsi_unit
+            #         print [m.start() for m in re.finditer(rsi_unit, CAR)]
+            #     i = i + 1
+
         except IOError:
             loglog.write( "{}  ERROR (master.py) - could not write ancestor genome to " "file: {}\n"
                             .format(strtime(), output_directory + "/ancestor_genome" ) )
@@ -454,7 +541,20 @@ class MasterGenConstruction:
         log.write( "{}  Assembled the ancestral genome, found a total of {} CARs.\n"
                    .format(strtime(), len(ancestor_genome.chromosomes) ) )
         log.write( "{}  Done.\n".format(strtime()) )
+
     #enddef
+    def remove_head_tail(self, s):
+        return s[:-2]
+
+    def remove_duplicates(self,li):
+        my_set = set()
+        res = []
+        for e in li:
+            if e not in my_set:
+                res.append(e)
+                my_set.add(e)
+        #
+        return res
 #endclass
 
 class MasterScript:
