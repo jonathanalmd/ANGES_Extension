@@ -397,8 +397,67 @@ class MasterGenConstruction:
     #enddef
 
     def checkAncestralAdjacencies(self, markers, adjacencies, repeat_clusters, ancestor_genome):
-        pass
+        i = 0
+        adj_str_list = []
+        for key in adjacencies.endpoints.keys():
+            # print key, adjacencies.endpoints[key],i
+            for adj_pair in adjacencies.endpoints[key]:
+                # print adj_pair
+                save_pair = []
+                save_pair.append(int(adj_pair[0][:-2]))
+                save_pair.append(int(adj_pair[1][:-2]))
+                save_pair.sort()
+                if save_pair not in adj_str_list:
+                    adj_str_list.append(save_pair)
+            i = i + 1
+        # print adj_str_list
+        # print len(adj_str_list)
+        ancestor_adjacencies = []
+        for chrom_id, chrom in ancestor_genome.chromosomes.iteritems():
+            index = 0
+            car = ""
+            while index < len(chrom):
+                car = car + str(chrom[index].id) + " "
+                # print car
+                found = False
+                adjacency_unit = adjacencies.itervalues()
+                # for adj in self.adj.realizable_adjacencies.itervalues():
+                if (index+1) < len(chrom):
+                    save_pair = []
+                    save_pair.append(int(chrom[index].id))
+                    save_pair.append(int(chrom[index+1].id))
+                    save_pair.sort()
+                    # str1 = str(chrom[index].id) + " " + str(chrom[index+1].id)
+                    # print "\n*************"
+                    # print "/" + str1 + "|" + str2 + "/\n*************\n"
+                    if save_pair in adj_str_list:
+                        # print "\n========================================\nfound adjacency in adjacencies"
+                        # print car + str(chrom[index+1].id)
+                        # print save_pair
+                        # print "\n=======================================\n"
+                        ancestor_adjacencies.append(save_pair)
+                        found = True
+                        # break
+                else:
+                    found = True
 
+                if not found:
+                    print "****** not found adjacency"
+                    print save_pair
+                    print car + str(chrom[index+1].id)
+                    print "*****************************"
+                index = index + 1
+                # if not found:
+                    # pass
+                    # print "ERROR> adjacency in ancestral genome that is not in adjacencies"
+            # print car
+        # print adj_str_list]
+        for adj_pair in adj_str_list:
+            if adj_pair not in ancestor_adjacencies:
+                print "*********** adjacency in realizable_adjacencies not found in ancestor_genome adjacencies"
+                print adj_pair
+
+                
     def dealWithConstructionPhase(self, hom_fam_list, output_directory, log):
         self.ancestor_hom_fams = assembly.assemble(
             hom_fam_list,
@@ -439,7 +498,7 @@ class MasterGenConstruction:
                 genome_output.write("\n#RC " + str(index+1) + "\n" + rc)
                 # print ("RC {}".format(index+1))
                 # print rc
-            print self.adj.getRepeatClusterListInt()
+            print (self.adj.getRepeatClusterListInt())
             genome_output.write("\n")
 
 
@@ -555,9 +614,9 @@ class MasterGenConstruction:
         log.write( "{}  Done.\n".format(strtime()) )
 
         genome_output.write("\n")
-        CAR_total_list.sort(key = len)
+        CAR_total_list.sort(key = len, reverse = True)
         for idx_car,CAR in enumerate(CAR_total_list):
-            print_CAR = "#CAR " + str(idx_car+1) + "\n" + CAR + "\n"
+            print_CAR = ("#CAR " + str(idx_car+1) + "\n" + CAR + "\n")
             genome_output.write(print_CAR)
 
     #enddef
