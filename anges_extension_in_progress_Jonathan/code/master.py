@@ -28,12 +28,15 @@ def main():
         master_script_obj.adjacenciesPhase()
 
     # -------------- ANCESTRAL GENOME CONSTRUCTION PHASE -----------------
-    # Construct ancestral genome based on realizable intervals.
     if master_script_obj.doC1PorNot():
+        # Construct ancestral genome based on realizable adjacencies.
         print("Running C1P")
         master_script_obj.c1pPhase()
     else: # do MWM
         print("Running MWM")
+        # ----------------- INTERVALS PHASE ------------------
+        master_script_obj.intervalsPhase()
+        # Construct ancestral genome based on realiazable intervals
         master_script_obj.genomeConstructionPhase() 
 
 main()

@@ -1,5 +1,6 @@
 import sys
 import time
+import re
 
 from collections import defaultdict
 
@@ -13,7 +14,6 @@ import assembly
 
 from c1p_files import process_c1p
     
-import re
 
 def strtime():
     """
@@ -379,7 +379,7 @@ class MasterGenConstruction:
         self.adj.solveAdjacencies(species_pairs, self.gens, output_directory, log, all_match)
         # how many times species pairs 
 
-
+    def dealWithIntervalsPhase(self, species_pairs, hom_fam_list, output_directory, log, debug, all_match):
         # Do the same for repeat spanning intervals
         self.RSI.solveRSIs(species_pairs, self.gens, output_directory, log, all_match)
 
@@ -396,6 +396,7 @@ class MasterGenConstruction:
         self.RSI.trackDiscardedRSIs(output_directory, log)
     #enddef
 
+
     def checkAncestralAdjacencies(self, ancestor_genome, adj_str_list, RC_adjacencies):
 
         ancestor_adjacencies = []
@@ -411,17 +412,10 @@ class MasterGenConstruction:
                     save_pair.append(int(chrom[index].id))
                     save_pair.append(int(chrom[index+1].id))
                     save_pair.sort()
-                    # str1 = str(chrom[index].id) + " " + str(chrom[index+1].id)
-                    # print "\n*************"
-                    # print "/" + str1 + "|" + str2 + "/\n*************\n"
-                    if save_pair in adj_str_list and save_pair not in RC_adjacencies:
-                        # print "\n========================================\nfound adjacency in adjacencies"
-                        # print car + str(chrom[index+1].id)
-                        # print save_pair
-                        # print "\n=======================================\n"
+                    if save_pair in adj_str_list or save_pair in RC_adjacencies:
+                        # found adjacency in adjacencies
                         ancestor_adjacencies.append(save_pair)
                         found = True
-                        # break
                 else:
                     found = True
 
@@ -431,14 +425,10 @@ class MasterGenConstruction:
                     print car + str(chrom[index+1].id)
                     print "*****************************"
                 index = index + 1
-                # if not found:
-                    # pass
-                    # print "ERROR> adjacency in ancestral genome that is not in adjacencies"
-            # print car
-        # print adj_str_list]
+
         for adj_pair in adj_str_list:
-            if adj_pair not in ancestor_adjacencies:
-                print "*********** adjacency in realizable_adjacencies not found in ancestor_genome adjacencies"
+            if adj_pair not in ancestor_adjacencies or adj_pair in RC_adjacencies:
+                print "***********adjacency in realizable_adjacencies not found in ancestor_genome adjacencies"
                 print adj_pair
 
                 
@@ -460,8 +450,10 @@ class MasterGenConstruction:
             )
         ancestor_genome = next( self.ancestor_genomes.itervalues() )
         
+        # Create adjacencies list using an easier format to do the checkings
         i = 0
         adj_str_list = []
+        adj_doubled_list = []
         for key in self.adj.realizable_adjacencies.endpoints.keys():
             for adj_pair in self.adj.realizable_adjacencies.endpoints[key]:
                 save_pair = []
@@ -470,8 +462,14 @@ class MasterGenConstruction:
                 save_pair.sort()
                 if save_pair not in adj_str_list:
                     adj_str_list.append(save_pair)
+
+                save_pair_str = []
+                save_pair_str.append(adj_pair[0])
+                save_pair_str.append(adj_pair[1])
+                adj_doubled_list.append(save_pair_str)
             i = i + 1
 
+        # Get the len of the greater RSI
         RSI_no_doubling = []
         max_RSI = 0
         for index, markers in enumerate(self.RSI.realizable_RSIs.itervalues()):
@@ -480,6 +478,7 @@ class MasterGenConstruction:
             if len(RSI_no_doubling) > max_RSI:
                 max_RSI = len(self.remove_duplicates(RSI_no_doubling))
 
+        # Edit the ancestral genome (check RC's and RSI's and if is circular or not)
         try:
             genome_output = open( output_directory + "/ancestor_genome", 'w' )
             genome_output.write( ">" + self.ancestor_name)
@@ -493,21 +492,13 @@ class MasterGenConstruction:
             # DealWith CAR's
             RC_adjacencies = []
             CAR_total_list = []
-            CAR_string = ""
             CAR_string_aux = ""
             for chrom_id, chrom in ancestor_genome.chromosomes.iteritems(): # Chrom = CARs
                 CAR_string = ""
                 index = 0
                 previous_position = []
                 while index < len(chrom):
-                    if chrom[index].locus.orientation > 0:
-                        orient = "+"
-                    elif chrom[index].locus.orientation < 0:
-                        orient = "-"
-                    else:
-                        orient = "x"
                     flag = False
-
                     for index_rc, rc in enumerate(self.adj.getRepeatClusterListInt()):
                         if int(chrom[index].id) in rc:
                             flag = True
@@ -545,19 +536,20 @@ class MasterGenConstruction:
                             cut = CAR_string[1::-1].find(" ") 
                             CAR_string = CAR_string[:-rc_len-cut] + rsi_found + " "
                             index = index + max_RSI
-                        # print "end dealing with RSI"
                     else:
                         last_marker_id = chrom[index].id
                     index = index + 1
                 
+                # Check if is circular
                 marker_pair = []
-                marker_pair.append(int(chrom[0].id))
-                marker_pair.append(int(last_marker_id))
-                if marker_pair in adj_str_list:
-                     # print "Circular"
+                marker_pair.append(chrom[0].id + "_h")
+                marker_pair.append(last_marker_id + "_t")
+                marker_pair2 = []
+                marker_pair2.append(chrom[0].id + "_t")
+                marker_pair2.append(last_marker_id + "_h")
+                if marker_pair in adj_doubled_list or marker_pair2 in adj_doubled_list:
                     CAR_string = "_C " + CAR_string + "C_"
                 else:
-                    # print "Not Circular"
                     CAR_string = "_Q " + CAR_string + "Q_"
 
                 CAR_total_list.append(CAR_string)
@@ -571,12 +563,15 @@ class MasterGenConstruction:
                    .format(strtime(), len(ancestor_genome.chromosomes), len(self.adj.getRepeatClusterList()) ) )
         log.write( "{}  Done.\n".format(strtime()) )
 
+        # Write the ancestral genome (CARs)
         genome_output.write("\n")
         CAR_total_list.sort(key = len, reverse = True)
         for idx_car,CAR in enumerate(CAR_total_list):
             print_CAR = ("#CAR " + str(idx_car+1) + "\n" + CAR + "\n")
             genome_output.write(print_CAR)
 
+        # Check if the adjacencies in Ancestral genome adjacencies are in the Realizable adjacencies (report when not in)
+        # Also check if the adjacencies in realizable adjacencies are in the ancestral genome (report when not in)
         self.checkAncestralAdjacencies(ancestor_genome, adj_str_list, RC_adjacencies)
 
     #enddef
@@ -756,18 +751,10 @@ class MasterScript:
         # Genome construction
         self.genome_construction_obj.constructGenomes(self.species_pairs, self.hom_fam_list, self.log)
         self.genome_construction_obj.dealWithAdjPhase(self.species_pairs, self.hom_fam_list, self.io_dict["output_directory"], self.log, self.debug, self.run_param_dict["all_match"])
-
-
-        # REMOVE LATER
-        # adjacencies = self.genome_construction_obj.getAdjacencies().getAdjacencies()
-        # realizable_adjacencies = self.genome_construction_obj.getAdjacencies().getRealizableAdjacencies()
-        # discarded_adjacencies = self.genome_construction_obj.getAdjacencies().getDiscardedAdjacencies()
-
-        # c1p_obj = process_c1p.MasterC1P()
-        # c1p_obj.setConfigParams(self.config_file_directory,adjacencies,realizable_adjacencies,discarded_adjacencies)
-        # c1p_obj.bmFromDictionary()
-
     #enddef
+
+    def intervalsPhase(self):
+        self.genome_construction_obj.dealWithIntervalsPhase(self.species_pairs, self.hom_fam_list, self.io_dict["output_directory"], self.log, self.debug, self.run_param_dict["all_match"])
 
     def c1pPhase(self):
         c1p_obj = process_c1p.MasterC1P()

@@ -114,7 +114,7 @@ def opt_adjacencies( hom_fams, adjacencies ):
                     G_8.add_edge(m2,m2,weight=1, adj= adjacency)
 
     high_cp_graph = [c for c in sorted(networkx.connected_components(G_8), key=len, reverse=True)]
-    print high_cp_graph
+    # print high_cp_graph
     
     rc_total_list = []
     rc_total_list_int = []
